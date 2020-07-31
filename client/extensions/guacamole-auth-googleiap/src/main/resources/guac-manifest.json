@@ -1,0 +1,8 @@
+{
+    "guacamoleVersion" : "1.1.0",
+    "name"      : "Google IAP Authentication Extension",
+    "namespace" : "google-iap",
+    "authProviders" : [
+        "com.google.cloud.iap.guacamole.GoogleIapAuthenticationProvider"
+    ]
+}

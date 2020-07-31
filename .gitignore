@@ -1,0 +1,16 @@
+# Generated Configuration / Keys
+client/client-settings.properties
+client/db-secrets.properties
+client/iap-secrets.properties
+client/guacamole.properties
+server-ca.pem
+truststore.jks
+clientstore.jks
+clientstore.pass
+env/
+client_secret*
+insert-admin-user.sql
+client/tomcat/conf/server.xml
+
+# IDE
+.vscode

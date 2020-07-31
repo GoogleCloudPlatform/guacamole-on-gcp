@@ -1,0 +1,10 @@
+GUACAMOLE_HOME=/etc/guacamole
+GUACD_HOSTNAME=guacamole-server-service
+GUACD_PORT=4822
+MYSQL_HOSTNAME=${db_address}
+MYSQL_PORT=3306
+MYSQL_SSL_MODE=verify-ca
+MYSQL_SSL_TRUST_PASSWORD=${truststore_password}
+MYSQL_SSL_CLIENT_PASSWORD=${clientstore_password}
+MYSQL_DATABASE=guacamole?useSSL=true&trustCertificateKeyStoreUrl=file:/etc/config/truststore.jks&trustCertificateKeyStoreType=JKS&clientCertificateKeyStoreUrl=file:/etc/config/clientstore.jks&clientCertificateKeyStoreType=JKS
+LOGBACK_LEVEL=info

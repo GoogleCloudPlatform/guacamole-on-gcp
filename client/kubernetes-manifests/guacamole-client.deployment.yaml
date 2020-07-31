@@ -1,0 +1,81 @@
+# 
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: guacamole-client
+    namespace: guacamole
+    labels:
+      app: guacamole-client
+  spec:
+    
+    # replicas: not specified here:
+    # 1. Default is 1.
+    # 2. Will be tuned in real time if DNS horizontal auto-scaling is turned on.
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: 1
+    selector:
+      matchLabels:
+        app: guacamole-client
+    template:
+      metadata:
+        labels:
+          app: guacamole-client
+      spec:
+        serviceAccountName: svc-guacamole
+        containers:
+        - name: guacamole-client
+          image: guacamole-client-iap
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+          envFrom:
+            - configMapRef:
+                name: guacamole-client-settings
+            - secretRef:
+                name: db-user-pass
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          ports:
+          - containerPort: 8080
+            name: serving-port
+            protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health-servlet/index.jsp
+              port: serving-port
+            failureThreshold: 1
+            periodSeconds: 10
+            initialDelaySeconds: 60
+            timeoutSeconds: 5 
+          startupProbe:
+            httpGet:
+              path: /health-servlet/index.jsp
+              port: serving-port
+            failureThreshold: 30
+            periodSeconds: 10
+            initialDelaySeconds: 20
+        volumes:
+          - name: config-volume
+            configMap:
+              name: java-trust-store

@@ -1,0 +1,16 @@
+apiVersion: skaffold/v2beta13
+kind: Config
+build:
+  artifacts:
+  - image: guacamole-client-iap
+    context: ./client
+    docker:
+      buildArgs:
+        CLIENT_IMAGE: guacamole/guacamole:1.3.0
+deploy:
+  kustomize: {}
+profiles:
+- name: cloudbuild
+  build:
+    googleCloudBuild: {}
+

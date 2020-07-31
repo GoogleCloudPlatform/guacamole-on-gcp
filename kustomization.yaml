@@ -1,0 +1,53 @@
+# 
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+configurations:
+- ./kustomizeconfig/backendconfig.yaml
+
+configMapGenerator:
+- envs:
+  - ./client/client-settings.properties
+  name: guacamole-client-settings
+  namespace: guacamole
+- files:
+  - truststore.jks
+  - clientstore.jks
+  name: java-trust-store
+  namespace: guacamole
+
+
+secretGenerator:
+- envs:
+  - ./client/db-secrets.properties
+  name: db-user-pass
+  namespace: guacamole
+- envs:
+  - ./client/iap-secrets.properties
+  name: guacamole-iap-secret
+  namespace: guacamole
+
+resources:
+- client/kubernetes-manifests/guacamole-client.backendconfig.yaml
+- client/kubernetes-manifests/guacamole-client.deployment.yaml
+- client/kubernetes-manifests/guacamole-client.ingress.yaml
+- client/kubernetes-manifests/guacamole-client.managedcert.yaml
+- client/kubernetes-manifests/guacamole-client.role.yaml
+- client/kubernetes-manifests/guacamole-client.service.yaml
+- server/kubernetes-manifests/guacamole-server.deployment.yaml
+- server/kubernetes-manifests/guacamole-server.service.yaml
+- client/kubernetes-manifests/guacamole-client.rolebinding.yaml
