@@ -1,6 +1,6 @@
 # Apache Guacamole on Google Cloud Platform
 
-See the tutorial at TODO
+See the tutorial at [Google Cloud Architecture Center](https://cloud.google.com/architecture/deploy-guacamole-gke)
 
 This is not an officially supported Google product
 
