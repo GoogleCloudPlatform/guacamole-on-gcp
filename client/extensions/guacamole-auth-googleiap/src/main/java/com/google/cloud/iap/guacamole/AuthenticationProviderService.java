@@ -42,14 +42,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Service providing convenience functions for the IAP Header AuthenticationProvider implementation.
+ * Service providing convenience functions for the IAP Header
+ * AuthenticationProvider implementation.
  */
 public class AuthenticationProviderService {
   /** Logger for this class. */
   private static final Logger logger = LoggerFactory.getLogger(AuthenticationProviderService.class);
 
-  private static final String PUBLIC_KEY_VERIFICATION_URL =
-      "https://www.gstatic.com/iap/verify/public_key-jwk";
+  private static final String PUBLIC_KEY_VERIFICATION_URL = "https://www.gstatic.com/iap/verify/public_key-jwk";
 
   private static final String IAP_ISSUER_URL = "https://cloud.google.com/iap";
 
@@ -59,18 +59,23 @@ public class AuthenticationProviderService {
   private static Clock clock = Clock.systemUTC();
 
   /** Service for retrieving header configuration information. */
-  @Inject private ConfigurationService confService;
+  @Inject
+  private ConfigurationService confService;
 
   /** Provider for AuthenticatedUser objects. */
-  @Inject private Provider<AuthenticatedUser> authenticatedUserProvider;
+  @Inject
+  private Provider<AuthenticatedUser> authenticatedUserProvider;
 
   /**
-   * Returns an AuthenticatedUser representing the user authenticated by the given credentials.
+   * Returns an AuthenticatedUser representing the user authenticated by the given
+   * credentials.
    *
    * @param credentials The credentials to use for authentication.
-   * @return An AuthenticatedUser representing the user authenticated by the given credentials.
-   * @throws GuacamoleException If an error occurs while authenticating the user, or if access is
-   *     denied.
+   * @return An AuthenticatedUser representing the user authenticated by the given
+   *         credentials.
+   * @throws GuacamoleException If an error occurs while authenticating the user,
+   *                            or if access is
+   *                            denied.
    */
   public AuthenticatedUser authenticateUser(Credentials credentials) throws GuacamoleException {
 
@@ -92,19 +97,27 @@ public class AuthenticationProviderService {
         logger.debug("Google-IAP: Retrieved JWT from header");
       }
 
-      if (!verifyJwt(
-          jwtToken,
-          String.format(
-              "/projects/%s/global/backendServices/%s",
-              confService.getProjectNumber(), confService.getBackendServiceId()))) {
-        // JWT is not a valid token
-        throw new GuacamoleInvalidCredentialsException(
-            "Invalid login (JWT Failed Validation).", CredentialsInfo.USERNAME_PASSWORD);
-      }
+      String username = null;
 
-      SignedJWT signedJwt = SignedJWT.parse(jwtToken);
-      JWTClaimsSet claims = signedJwt.getJWTClaimsSet();
-      String username = claims.getClaim("email").toString();
+      try {
+        if (!verifyJwt(
+            jwtToken,
+            String.format(
+                "/projects/%s/global/backendServices/%s",
+                confService.getProjectNumber(), confService.getBackendServiceId()))) {
+          // JWT is not a valid token
+          throw new GuacamoleInvalidCredentialsException(
+              "Invalid login (JWT Failed Validation).", CredentialsInfo.USERNAME_PASSWORD);
+        }
+
+        SignedJWT signedJwt = SignedJWT.parse(jwtToken);
+        JWTClaimsSet claims = signedJwt.getJWTClaimsSet();
+        username = claims.getClaim("email").toString();
+      } catch (Exception e) {
+        throw new GuacamoleInvalidCredentialsException(
+            "Invalid login (JWt Failed Validation)", e, CredentialsInfo.USERNAME_PASSWORD);
+
+      }
 
       if (username != null) {
         AuthenticatedUser authenticatedUser = authenticatedUserProvider.get();
