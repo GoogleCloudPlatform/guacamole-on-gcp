@@ -6,3 +6,4 @@ target/
 .settings/
 lib/
 .vscode/
+pom.xml.versionsBackup

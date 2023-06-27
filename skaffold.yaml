@@ -13,19 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: skaffold/v2beta13
+apiVersion: skaffold/v4beta5
 kind: Config
 build:
   artifacts:
-  - image: guacamole-client-iap
-    context: ./client
-    docker:
-      buildArgs:
-        CLIENT_IMAGE: guacamole/guacamole:1.3.0
+    - image: guacamole-client-iap
+      context: ./client
+      docker:
+        buildArgs:
+          CLIENT_IMAGE: guacamole/guacamole:1.5.2
+manifests:
+  kustomize:
+    paths:
+      - .
 deploy:
-  kustomize: {}
+  kubectl: {}
 profiles:
-- name: cloudbuild
-  build:
-    googleCloudBuild: {}
+  - name: cloudbuild
+    build:
+      googleCloudBuild: {}
+      
 
