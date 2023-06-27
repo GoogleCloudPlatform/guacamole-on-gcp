@@ -17,10 +17,9 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.compute.v1.BackendService;
-import com.google.cloud.compute.v1.BackendServiceClient;
-import com.google.cloud.compute.v1.BackendServiceSettings;
-import com.google.cloud.compute.v1.GetBackendServiceHttpRequest;
-import com.google.cloud.compute.v1.ProjectGlobalBackendServiceName;
+import com.google.cloud.compute.v1.BackendServicesClient;
+import com.google.cloud.compute.v1.BackendServicesSettings;
+import com.google.cloud.compute.v1.GetBackendServiceRequest;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -112,30 +111,22 @@ public class ConfigurationService {
     String backendServiceId = "";
     Credentials myCredentials = GoogleCredentials.getApplicationDefault();
 
-    BackendServiceSettings backendServiceSettings =
-        BackendServiceSettings.newBuilder()
+    BackendServicesSettings backendServiceSettings =
+        BackendServicesSettings.newBuilder()
             .setCredentialsProvider(FixedCredentialsProvider.create(myCredentials))
             .build();
 
-    try (BackendServiceClient backendServiceClient =
-        BackendServiceClient.create(backendServiceSettings)) {
+    try (BackendServicesClient backendServiceClient =
+        BackendServicesClient.create(backendServiceSettings)) {
 
-      String formattedBackendService =
-          ProjectGlobalBackendServiceName.format(backendService, projectId);
-
-      logger.debug(
-          "Google-IAP: Getting {} for {} (project-id: {})",
-          formattedBackendService,
-          backendService,
-          projectId);
-
-      GetBackendServiceHttpRequest request =
-          GetBackendServiceHttpRequest.newBuilder()
-              .setBackendService(formattedBackendService)
+      GetBackendServiceRequest request =
+          GetBackendServiceRequest.newBuilder()
+              .setBackendService(backendService)
+              .setProject(projectId)
               .build();
 
-      BackendService response = backendServiceClient.getBackendService(request);
-      backendServiceId = response.getId();
+      BackendService response = backendServiceClient.get(request);
+      backendServiceId = Long.toString(response.getId());
     } catch (Exception e) {
       logger.debug("Exception accessing GCP API: {}", e.toString());
       e.printStackTrace();
@@ -163,7 +154,7 @@ public class ConfigurationService {
     CoreV1Api api = new CoreV1Api();
 
     /* Retrieve the named service and extract its annotations */
-    V1Service service = api.readNamespacedService(serviceName, namespace, "false", false, false);
+    V1Service service = api.readNamespacedService(serviceName, namespace, "false");
     String negStatus = service.getMetadata().getAnnotations().get(ANNOTATION_NEG_STATUS);
 
     /* Parse the network_endpoint_groups annotation */

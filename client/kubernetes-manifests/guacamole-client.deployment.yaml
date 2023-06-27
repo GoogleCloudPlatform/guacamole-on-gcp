@@ -62,7 +62,7 @@
             protocol: TCP
           livenessProbe:
             httpGet:
-              path: /health-servlet/index.jsp
+              path: /guacamole
               port: serving-port
             failureThreshold: 1
             periodSeconds: 10
@@ -70,7 +70,7 @@
             timeoutSeconds: 5 
           startupProbe:
             httpGet:
-              path: /health-servlet/index.jsp
+              path: /guacamole
               port: serving-port
             failureThreshold: 30
             periodSeconds: 10
