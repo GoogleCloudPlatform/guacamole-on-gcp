@@ -155,6 +155,7 @@ public class ConfigurationService {
 
     /* Retrieve the named service and extract its annotations */
     V1Service service = api.readNamespacedService(serviceName, namespace, "false");
+    
     String negStatus = service.getMetadata().getAnnotations().get(ANNOTATION_NEG_STATUS);
 
     /* Parse the network_endpoint_groups annotation */

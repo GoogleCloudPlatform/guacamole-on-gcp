@@ -11,6 +11,7 @@ env/
 client_secret*
 insert-admin-user.sql
 client/tomcat/conf/server.xml
+client/kubernetes-manifests/guacamole-client.managedcert.yaml
 
 # IDE
 .vscode
