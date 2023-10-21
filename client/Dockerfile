@@ -32,9 +32,6 @@ COPY ./bin /opt/guacamole/bin
 # Copy the Google IAP extension source
 COPY ./extensions/. ${BUILD_DIR}/extensions
 
-COPY ./health-servlet/. ${BUILD_DIR}/health-servlet
-RUN mvn package -f ${BUILD_DIR}/health-servlet && cp ${BUILD_DIR}/health-servlet/target/health-servlet.war /opt/guacamole
-
 # Run the build itself
 RUN /opt/guacamole/bin/build-googleiap.sh ${BUILD_DIR}/extensions/guacamole-auth-googleiap /etc/guacamole
 
@@ -48,9 +45,6 @@ RUN rm -rf \
         /usr/local/tomcat/webapps/host-manager \
         /usr/local/tomcat/webapps/manager \
         /usr/local/tomcat/webapps/examples
-
-# COPY ./tomcat/webapps/ROOT/index.jsp /usr/local/tomcat/webapps/ROOT
-COPY --from=builder /opt/guacamole/health-servlet.war /usr/local/tomcat/webapps
 
 # Add internalProxies via RemoteIpValve to server.xml
 # - Will be possible via env, once PR merged: https://github.com/apache/guacamole-client/pull/489
