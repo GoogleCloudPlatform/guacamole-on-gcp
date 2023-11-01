@@ -24,6 +24,7 @@ resource "google_compute_subnetwork" "subnet" {
   region        = var.region
   network       = google_compute_network.vpc.name
   ip_cidr_range = "10.10.0.0/24"
+  private_ip_google_access = true
 }
 
 resource "google_compute_router" "router" {

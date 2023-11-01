@@ -51,11 +51,9 @@
             - secretRef:
                 name: db-user-pass
           resources:
-            limits:
-              memory: 512Mi
             requests:
               cpu: 100m
-              memory: 200Mi
+              memory: 512Mi
           ports:
           - containerPort: 8080
             name: serving-port

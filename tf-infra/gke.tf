@@ -42,12 +42,9 @@ resource "google_container_cluster" "gke" {
   node_config {
     machine_type = "e2-standard-2"
 
-    workload_metadata_config {
-      node_metadata = "GKE_METADATA_SERVER"
-    }
-
     metadata = {
       enable_oslogin = true
+      disable-legacy-endpoints = "true"
     }
 
     shielded_instance_config {
