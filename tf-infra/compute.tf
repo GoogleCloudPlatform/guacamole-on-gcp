@@ -41,7 +41,7 @@ resource "google_compute_router_nat" "nat" {
 }
 
 resource "google_compute_global_address" "private_ip_address" {
-  provider      = google-beta
+  provider      = google
   name          = "private-ip-address"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"

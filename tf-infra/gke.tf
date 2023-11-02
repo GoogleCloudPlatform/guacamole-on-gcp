@@ -14,22 +14,12 @@
 # limitations under the License.
 
 resource "google_container_cluster" "gke" {
-  provider           = google-beta
+  provider           = google
   name               = "guacamole-gke"
   location           = var.region
-  initial_node_count = 1
   networking_mode    = "VPC_NATIVE"
   network            = google_compute_network.vpc.id
   subnetwork         = google_compute_subnetwork.subnet.name
-
-  master_auth {
-    username = ""
-    password = ""
-  }
-
-  workload_identity_config {
-    identity_namespace = "${var.project_id}.svc.id.goog"
-  }
 
   private_cluster_config {
     enable_private_nodes    = true
@@ -37,29 +27,7 @@ resource "google_container_cluster" "gke" {
     master_ipv4_cidr_block  = var.nwr_master_node
   }
 
-  enable_shielded_nodes = true
-
-  node_config {
-    machine_type = "e2-standard-2"
-
-    workload_metadata_config {
-      node_metadata = "GKE_METADATA_SERVER"
-    }
-
-    metadata = {
-      enable_oslogin = true
-    }
-
-    shielded_instance_config {
-      enable_secure_boot = true
-    }
-
-    service_account = google_service_account.svc-gke-node.email
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform"
-    ]
-
-  }
+  enable_autopilot = true
 
   ip_allocation_policy {}
 }

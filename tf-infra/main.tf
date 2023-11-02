@@ -19,11 +19,11 @@ provider "google" {
   project = var.project_id
 }
 
-provider "google-beta" {
-  region  = var.region
-  zone    = var.zone
-  project = var.project_id
-}
+#provider "google-beta" {
+#  region  = var.region
+#  zone    = var.zone
+#  project = var.project_id
+#}
 
 provider "null" {
 }
@@ -93,15 +93,17 @@ resource "google_iap_client" "project_client" {
   brand        = google_iap_brand.project_brand.name
 }
 
-resource "google_container_registry" "registry" {
-  depends_on = [module.project-services]
-}
+#resource "google_container_registry" "registry" {
+#  depends_on = [module.project-services]
+#}
 
-resource "google_storage_bucket_iam_member" "gke-read-cloudrepo" {
-  bucket = google_container_registry.registry.id
-  role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.svc-gke-node.email}"
-}
+#resource "google_storage_bucket_iam_member" "gke-read-cloudrepo" {
+#  bucket = google_container_registry.registry.id
+#  role   = "roles/storage.objectViewer"
+#  member = "serviceAccount:${google_service_account.svc-gke-node.email}"
+#}
+
+data "google_compute_default_service_account" "default" {}
 
 data "google_client_openid_userinfo" "me" {}
 

@@ -18,6 +18,7 @@ resource "google_artifact_registry_repository" "guac-repo" {
   repository_id = "guac-repo"
   description   = "Docker Repository For IAP Enabled Guacamole"
   format        = "DOCKER"
+  depends_on = [module.project-services]
 }
 
 resource "google_artifact_registry_repository_iam_member" "artifactregistry-iam" {

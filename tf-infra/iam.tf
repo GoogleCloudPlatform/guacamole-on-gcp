@@ -47,8 +47,6 @@ resource "google_project_iam_custom_role" "iap-jwt-verify-role" {
   permissions = ["compute.backendServices.get"]
 }
 
-
-
 resource "google_service_account" "svc-gke-node" {
   account_id  = "svc-gke-node"
   description = "GKE Node Service Account"
@@ -61,5 +59,3 @@ resource "google_project_iam_member" "svc-gke-node-iam" {
   member  = "serviceAccount:${google_service_account.svc-gke-node.email}"
   role    = each.value
 }
-
-

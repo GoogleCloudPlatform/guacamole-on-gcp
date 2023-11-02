@@ -46,12 +46,15 @@ variable "nwr_master_node" {
 
 variable "required_apis" {
   description = "Google Cloud APIs required by this tutorial."
-  default = ["compute.googleapis.com",
+  default = ["cloudresourcemanager.googleapis.com", 
+    "serviceusage.googleapis.com",
+    "compute.googleapis.com",
     "container.googleapis.com",
-    "containerregistry.googleapis.com",
+    #"containerregistry.googleapis.com",
     "cloudbuild.googleapis.com",
     "servicenetworking.googleapis.com",
     "iap.googleapis.com",
+    "artifactregistry.googleapis.com",
     "sqladmin.googleapis.com",
   "stackdriver.googleapis.com"]
 }
