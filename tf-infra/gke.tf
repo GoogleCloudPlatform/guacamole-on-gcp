@@ -29,6 +29,13 @@ resource "google_container_cluster" "gke" {
 
   enable_autopilot = true
 
+  #When using TF provider <4.80, need to explicitly define CLOUD_DNS as cluster_dns per b/295958728
+  dns_config {
+    cluster_dns        = "CLOUD_DNS"
+    cluster_dns_domain = "cluster.local"
+    cluster_dns_scope  = "CLUSTER_SCOPE"
+  }
+
   ip_allocation_policy {}
 }
 
