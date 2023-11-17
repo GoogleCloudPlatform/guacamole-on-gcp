@@ -52,10 +52,11 @@
                 name: db-user-pass
           resources:
             limits:
-              memory: 512Mi
+              cpu: 1000m
+              memory: 2000Mi
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: 1000m
+              memory: 2000Mi
           ports:
           - containerPort: 8080
             name: serving-port

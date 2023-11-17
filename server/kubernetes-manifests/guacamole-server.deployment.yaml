@@ -43,10 +43,11 @@
           imagePullPolicy: IfNotPresent
           resources:
             limits:
-              memory: 170Mi
+              cpu: 250m
+              memory: 512Mi
             requests:
-              cpu: 100m
-              memory: 70Mi
+              cpu: 250m
+              memory: 512Mi
           ports:
           - containerPort: 4822
             name: guacd
