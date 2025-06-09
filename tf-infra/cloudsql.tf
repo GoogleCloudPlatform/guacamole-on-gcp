@@ -27,7 +27,7 @@ resource "google_sql_database_instance" "guacamole-mysql" {
     See https://cloud.google.com/sql/docs/mysql/delete-instance for details.
     */
   name             = "${var.db_name}-${random_id.suffix.hex}"
-  database_version = "MYSQL_5_7"
+  database_version = "MYSQL_8_0"
   region           = var.region
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
