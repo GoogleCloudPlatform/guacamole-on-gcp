@@ -16,7 +16,7 @@
 ARG CLIENT_IMAGE=guacamole-client:latest
 
 # Use official maven image for the build
-FROM maven:3-jdk-8 AS builder
+FROM maven:3-eclipse-temurin-21 AS builder
 
 # Use args to build radius auth extension such as
 # `--build-arg BUILD_PROFILE=lgpl-extensions`

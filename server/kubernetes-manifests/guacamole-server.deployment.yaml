@@ -39,7 +39,7 @@
       spec:
         containers:
         - name: guacamole-server
-          image: docker.io/guacamole/guacd:1.5.2
+          image: docker.io/guacamole/guacd:1.5.5
           imagePullPolicy: IfNotPresent
           resources:
             limits:
