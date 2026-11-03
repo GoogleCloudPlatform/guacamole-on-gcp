@@ -25,7 +25,8 @@ terraform.rc
 # Maven Build Output
 **/target/
 
-# IDE & OS Files
+# IDE, OS, & Local Design Files
 .vscode/
 .idea/
 .DS_Store
+docs/design/
