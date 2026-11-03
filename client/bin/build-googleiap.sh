@@ -14,30 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Source directory containing the guacamole-auth-googleiap Maven project and target installation path.
 BUILD_DIR="$1"
 DESTINATION="$2"
 
-#
-# Create destination, if it does not yet exist
-#
+# Create destination directories for Guacamole extensions and shared runtime libraries.
+mkdir -p "${DESTINATION}/extensions"
+mkdir -p "${DESTINATION}/lib"
 
-mkdir -p ${DESTINATION}/extensions
-mkdir -p ${DESTINATION}/lib
+# Compile, run unit tests + Apache RAT validation, and package the IAP extension JAR in batch mode.
+cd "${BUILD_DIR}"
+mvn -B package
 
-#
-# Build google iap jar
-#
-
-cd ${BUILD_DIR}
-mvn package
-
-# 
-# Copy IAP auth extension and schema modifications
-#
-
-if [ -f target/guacamole-auth-googleiap*.jar ]; then
+# Verify the extension JAR was produced and copy both the extension and its runtime dependencies.
+set -- target/guacamole-auth-googleiap-*.jar
+if [ -f "$1" ]; then
     echo "googleiap Extension Built - copying to ${DESTINATION}"
-    cp target/guacamole-auth-googleiap*.jar ${DESTINATION}/extensions
-    cp target/lib/*.jar ${DESTINATION}/lib
+    cp target/guacamole-auth-googleiap-*.jar "${DESTINATION}/extensions/"
+    cp target/lib/*.jar "${DESTINATION}/lib/"
+else
+    echo "ERROR: guacamole-auth-googleiap JAR was not found in ${BUILD_DIR}/target" >&2
+    exit 1
 fi
-

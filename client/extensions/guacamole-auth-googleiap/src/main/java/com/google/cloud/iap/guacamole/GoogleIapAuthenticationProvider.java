@@ -21,36 +21,39 @@ import org.apache.guacamole.net.auth.AuthenticatedUser;
 import org.apache.guacamole.net.auth.Credentials;
 
 /**
- * Guacamole authentication backend which authenticates users using an arbitrary external HTTP
- * header. No storage for connections is provided - only authentication. Storage must be provided by
- * some other extension.
+ * Guacamole authentication backend which authenticates users using a cryptographically signed
+ * Google Cloud Identity-Aware Proxy (IAP) JWT passed in the {@code x-goog-iap-jwt-assertion} HTTP
+ * header. No storage for connections is provided—only authentication. Connection storage is
+ * provided by a companion extension such as {@code guacamole-auth-jdbc-mysql}.
  */
 public class GoogleIapAuthenticationProvider extends AbstractAuthenticationProvider {
 
-  /** Injector which will manage the object graph of this authentication provider. */
+  /** Guice injector which manages the singleton object graph of this authentication provider. */
   private final Injector injector;
 
   /**
-   * Creates a new HTTPHeaderAuthenticationProvider that authenticates users using HTTP headers.
+   * Creates a new {@link GoogleIapAuthenticationProvider} that authenticates users via Google IAP
+   * JWT headers.
    *
-   * @throws GuacamoleException If a required property is missing, or an error occurs while parsing
-   *     a property.
+   * @throws GuacamoleException If a required property is missing, or an error occurs while
+   *     initializing the Guacamole environment.
    */
   public GoogleIapAuthenticationProvider() throws GuacamoleException {
 
-    // Set up Guice injector.
+    // Set up the Guice injector with singleton bindings for ConfigurationService and AuthenticationProviderService.
     injector = Guice.createInjector(new GoogleIapAuthenticationProviderModule(this));
   }
 
   @Override
   public String getIdentifier() {
+    // Unique identifier for the Google IAP authentication provider.
     return "googleiap";
   }
 
   @Override
   public AuthenticatedUser authenticateUser(Credentials credentials) throws GuacamoleException {
 
-    // Pass credentials to authentication service.
+    // Delegate credential verification to the singleton AuthenticationProviderService instance.
     AuthenticationProviderService authProviderService =
         injector.getInstance(AuthenticationProviderService.class);
     return authProviderService.authenticateUser(credentials);

@@ -13,16 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Bind the service-reader Role to the svc-guacamole ServiceAccount in the guacamole namespace.
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-    name: service-reader-binding
-    namespace: guacamole
+  name: service-reader-binding
+  namespace: guacamole
+# Grant the role permissions specifically to the guacamole-client Pod's ServiceAccount.
 subjects:
--   kind: ServiceAccount
+  - kind: ServiceAccount
     name: svc-guacamole
     namespace: guacamole
 roleRef:
-    kind: Role
-    name: service-reader
-    apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: service-reader
+  apiGroup: rbac.authorization.k8s.io

@@ -13,43 +13,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    name: guacamole-server
-    namespace: guacamole
-    labels:
+# Deployment running the Apache Guacamole 1.6.0 native protocol proxy daemon (guacd).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole-server
+  namespace: guacamole
+  labels:
+    app: guacamole-server
+    tier: backend
+spec:
+  # Default replica count is 1; RollingUpdate replaces pods without downtime.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  # Match Pods labeled with app: guacamole-server.
+  selector:
+    matchLabels:
       app: guacamole-server
-      tier: backend
-  spec:
-    # replicas: not specified here:
-    # 1. Default is 1.
-    # 2. Will be tuned in real time if DNS horizontal auto-scaling is turned on.
-    strategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 1
-    selector:
-      matchLabels:
+  template:
+    metadata:
+      labels:
         app: guacamole-server
-    template:
-      metadata:
-        labels:
-          app: guacamole-server
-      spec:
-        containers:
-        - name: guacamole-server
-          image: docker.io/guacamole/guacd:1.5.5
-          imagePullPolicy: IfNotPresent
-          resources:
-            limits:
-              cpu: 250m
-              memory: 512Mi
-            requests:
-              cpu: 250m
-              memory: 512Mi
-          ports:
-          - containerPort: 4822
-            name: guacd
-            protocol: TCP
-
+    spec:
+      containers:
+      # Native guacd 1.6.0 daemon translating Guacamole protocol traffic into SSH/RDP/VNC.
+      - name: guacamole-server
+        image: guacamole/guacd:1.6.0
+        imagePullPolicy: IfNotPresent
+        # CPU and memory requests/limits sized for guacd protocol translation on GKE Autopilot.
+        resources:
+          limits:
+            cpu: 250m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 512Mi
+        # Expose the Guacamole protocol daemon on TCP port 4822 inside the cluster.
+        ports:
+        - containerPort: 4822
+          name: guacd
+          protocol: TCP
+        # TCP socket readiness probe ensures guacd is accepting connections on port 4822 before receiving traffic.
+        readinessProbe:
+          tcpSocket:
+            port: guacd
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # TCP socket liveness probe restarts guacd if port 4822 becomes unresponsive.
+        livenessProbe:
+          tcpSocket:
+            port: guacd
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        # Enforce non-root execution as UID 1000 (the upstream guacd user in guacamole/guacd:1.6.0).
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL

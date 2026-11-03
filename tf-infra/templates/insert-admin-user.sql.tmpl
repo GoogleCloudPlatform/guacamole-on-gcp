@@ -14,31 +14,33 @@
  * limitations under the License.
  */
 
--- Create an Administrative Guacamole User and reset the guacadmin password
--- Modify the SET @username line below to reflect your Google identity
+-- Create an Administrative Guacamole User idempotently for your Google IAP identity.
+-- Modify the SET @username line below if you wish to grant admin access to a different email.
 
--- Admin user email identity
+-- Admin user email identity (normalized to lowercase to match IAP extension output)
 SET @username = '${admin_email}';
 
--- Generate salt
+-- Generate salt and random password (unused when logging in via IAP, but required by schema)
 SET @salt = UNHEX(SHA2(UUID(), 256));
-
--- Generate random password
 SET @password = UNHEX(SHA2(UUID(), 256));
 
 START TRANSACTION;
 
--- Create user and hash password with salt
-INSERT INTO guacamole_entity (name, type)
+-- Insert the user entity if it does not already exist
+INSERT IGNORE INTO guacamole_entity (name, type)
     VALUES (@username, 'USER');
 
-SET @entity=(SELECT entity_id FROM guacamole_entity WHERE name=@username LIMIT 1);
+-- Look up the entity_id for the user entity
+SET @entity = (SELECT entity_id FROM guacamole_entity WHERE name = @username AND type = 'USER' LIMIT 1);
 
-INSERT INTO guacamole_user (entity_id, password_salt, password_hash, password_date)
-     VALUES (@entity, @salt, UNHEX(SHA2(CONCAT(HEX(@password), HEX(@salt)), 256)), CURRENT_DATE());
+-- Insert the guacamole_user record if it does not already exist
+INSERT IGNORE INTO guacamole_user (entity_id, password_salt, password_hash, password_date)
+    VALUES (@entity, @salt, UNHEX(SHA2(CONCAT(HEX(@password), HEX(@salt)), 256)), CURRENT_DATE());
 
--- Grant ADMINISTER rights to @username
-INSERT INTO guacamole_system_permission(entity_id, permission)
-    VALUES (@entity, 'ADMINISTER');
+-- Grant ADMINISTER and AUDIT system permissions idempotently
+INSERT IGNORE INTO guacamole_system_permission (entity_id, permission)
+    VALUES
+        (@entity, 'ADMINISTER'),
+        (@entity, 'AUDIT');
 
 COMMIT;

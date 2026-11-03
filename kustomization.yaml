@@ -13,37 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Root Kustomization assembling Namespace, Workload Identity ServiceAccount, ConfigMap, Secret, and workloads.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-configurations:
-- ./kustomizeconfig/backendconfig.yaml
-
+# Generate the guacamole-client-settings ConfigMap from the Terraform-rendered properties file.
 configMapGenerator:
 - envs:
   - ./client/client-settings.properties
   name: guacamole-client-settings
   namespace: guacamole
-- files:
-  - truststore.jks
-  - clientstore.jks
-  name: java-trust-store
-  namespace: guacamole
 
-
+# Generate the db-user-pass Secret containing Cloud SQL MySQL credentials.
 secretGenerator:
 - envs:
   - ./client/db-secrets.properties
   name: db-user-pass
   namespace: guacamole
 
+# Apply the Namespace, Workload Identity ServiceAccount, and RBAC resources first.
 resources:
+- client/kubernetes-manifests/guacamole.namespace.yaml
+- client/kubernetes-manifests/guacamole-client.serviceaccount.yaml
+- client/kubernetes-manifests/guacamole-client.role.yaml
+- client/kubernetes-manifests/guacamole-client.rolebinding.yaml
+# Apply the Guacamole client Deployment, Service, BackendConfig, ManagedCertificate, and Ingress.
 - client/kubernetes-manifests/guacamole-client.backendconfig.yaml
 - client/kubernetes-manifests/guacamole-client.deployment.yaml
-- client/kubernetes-manifests/guacamole-client.ingress.yaml
-- client/kubernetes-manifests/guacamole-client.managedcert.yaml
-- client/kubernetes-manifests/guacamole-client.role.yaml
 - client/kubernetes-manifests/guacamole-client.service.yaml
+- client/kubernetes-manifests/guacamole-client.managedcert.yaml
+- client/kubernetes-manifests/guacamole-client.ingress.yaml
+# Apply the internal guacd server Deployment and ClusterIP Service.
 - server/kubernetes-manifests/guacamole-server.deployment.yaml
 - server/kubernetes-manifests/guacamole-server.service.yaml
-- client/kubernetes-manifests/guacamole-client.rolebinding.yaml

@@ -13,14 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Kubernetes Service exposing guacamole-client to the GKE Ingress Load Balancer via container-native NEGs.
 apiVersion: v1
 kind: Service
 metadata:
   name: guacamole-client-service
   namespace: guacamole
+  # Enable container-native load balancing (NEG) and attach the IAP/health-check BackendConfig.
   annotations:
     cloud.google.com/neg: '{"ingress": true}'
-    beta.cloud.google.com/backend-config: '{"default": "guacamole-config-default"}'
+    cloud.google.com/backend-config: '{"default": "guacamole-config-default"}'
+# Route external Load Balancer traffic on port 80 to Tomcat's port 8080 on guacamole-client Pods.
 spec:
   type: NodePort
   selector:

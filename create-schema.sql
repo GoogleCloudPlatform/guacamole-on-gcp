@@ -41,7 +41,7 @@ CREATE TABLE `guacamole_connection_group` (
     FOREIGN KEY (`parent_id`)
     REFERENCES `guacamole_connection_group` (`connection_group_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of connections. Each connection has a name, protocol, and
@@ -76,7 +76,7 @@ CREATE TABLE `guacamole_connection` (
     FOREIGN KEY (`parent_id`)
     REFERENCES `guacamole_connection_group` (`connection_group_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of base entities which may each be either a user or user group. Other
@@ -95,7 +95,7 @@ CREATE TABLE `guacamole_entity` (
   PRIMARY KEY (`entity_id`),
   UNIQUE KEY `guacamole_entity_name_scope` (`type`, `name`)
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of users. Each user has a unique username and a hashed password
@@ -144,7 +144,7 @@ CREATE TABLE `guacamole_user` (
     REFERENCES `guacamole_entity` (`entity_id`)
     ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of user groups. Each user group may have an arbitrary set of member
@@ -169,7 +169,7 @@ CREATE TABLE `guacamole_user_group` (
     REFERENCES `guacamole_entity` (`entity_id`)
     ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of users which are members of given user groups.
@@ -192,7 +192,7 @@ CREATE TABLE `guacamole_user_group_member` (
     FOREIGN KEY (`member_entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of sharing profiles. Each sharing profile has a name, associated set
@@ -216,7 +216,7 @@ CREATE TABLE guacamole_sharing_profile (
     REFERENCES `guacamole_connection` (`connection_id`)
     ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of connection parameters. Each parameter is simply a name/value pair
@@ -235,7 +235,7 @@ CREATE TABLE `guacamole_connection_parameter` (
     FOREIGN KEY (`connection_id`)
     REFERENCES `guacamole_connection` (`connection_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of sharing profile parameters. Each parameter is simply
@@ -256,7 +256,7 @@ CREATE TABLE guacamole_sharing_profile_parameter (
     FOREIGN KEY (`sharing_profile_id`)
     REFERENCES `guacamole_sharing_profile` (`sharing_profile_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of arbitrary user attributes. Each attribute is simply a name/value
@@ -278,7 +278,7 @@ CREATE TABLE guacamole_user_attribute (
     FOREIGN KEY (user_id)
     REFERENCES guacamole_user (user_id) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of arbitrary user group attributes. Each attribute is simply a
@@ -300,7 +300,7 @@ CREATE TABLE guacamole_user_group_attribute (
     FOREIGN KEY (`user_group_id`)
     REFERENCES `guacamole_user_group` (`user_group_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of arbitrary connection attributes. Each attribute is simply a
@@ -322,7 +322,7 @@ CREATE TABLE guacamole_connection_attribute (
     FOREIGN KEY (connection_id)
     REFERENCES guacamole_connection (connection_id) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of arbitrary connection group attributes. Each attribute is simply a
@@ -344,7 +344,7 @@ CREATE TABLE guacamole_connection_group_attribute (
     FOREIGN KEY (connection_group_id)
     REFERENCES guacamole_connection_group (connection_group_id) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of arbitrary sharing profile attributes. Each attribute is simply a
@@ -366,7 +366,7 @@ CREATE TABLE guacamole_sharing_profile_attribute (
     FOREIGN KEY (sharing_profile_id)
     REFERENCES guacamole_sharing_profile (sharing_profile_id) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of connection permissions. Each connection permission grants a user or
@@ -392,7 +392,7 @@ CREATE TABLE `guacamole_connection_permission` (
     FOREIGN KEY (`entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of connection group permissions. Each group permission grants a user
@@ -418,7 +418,7 @@ CREATE TABLE `guacamole_connection_group_permission` (
     FOREIGN KEY (`entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of sharing profile permissions. Each sharing profile permission grants
@@ -444,7 +444,7 @@ CREATE TABLE guacamole_sharing_profile_permission (
     FOREIGN KEY (`entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of system permissions. Each system permission grants a user or user
@@ -459,6 +459,7 @@ CREATE TABLE `guacamole_system_permission` (
                     'CREATE_SHARING_PROFILE',
                     'CREATE_USER',
                     'CREATE_USER_GROUP',
+                    'AUDIT',
                     'ADMINISTER') NOT NULL,
 
   PRIMARY KEY (`entity_id`,`permission`),
@@ -467,7 +468,7 @@ CREATE TABLE `guacamole_system_permission` (
     FOREIGN KEY (`entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of user permissions. Each user permission grants a user or user group
@@ -494,7 +495,7 @@ CREATE TABLE `guacamole_user_permission` (
     FOREIGN KEY (`entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of user group permissions. Each user group permission grants a user
@@ -521,7 +522,7 @@ CREATE TABLE `guacamole_user_group_permission` (
     FOREIGN KEY (`entity_id`)
     REFERENCES `guacamole_entity` (`entity_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Table of connection history records. Each record defines a specific user's
@@ -562,7 +563,7 @@ CREATE TABLE `guacamole_connection_history` (
     FOREIGN KEY (`sharing_profile_id`)
     REFERENCES `guacamole_sharing_profile` (`sharing_profile_id`) ON DELETE SET NULL
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- User login/logout history
@@ -587,7 +588,7 @@ CREATE TABLE guacamole_user_history (
     FOREIGN KEY (user_id)
     REFERENCES guacamole_user (user_id) ON DELETE SET NULL
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- User password history
@@ -610,4 +611,4 @@ CREATE TABLE guacamole_user_password_history (
     FOREIGN KEY (`user_id`)
     REFERENCES `guacamole_user` (`user_id`) ON DELETE CASCADE
 
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

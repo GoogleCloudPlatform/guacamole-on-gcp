@@ -13,25 +13,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Establish VPC peering with Service Networking so Cloud SQL can be reached over Private IP.
+# deletion_policy = "ABANDON" avoids peering teardown hangs when Cloud SQL IP release lags during destroy.
 resource "google_service_networking_connection" "private_vpc_connection" {
   provider                = google
   network                 = google_compute_network.vpc.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+  deletion_policy         = "ABANDON"
+  depends_on              = [module.project-services]
 }
 
+# Provision the private Cloud SQL for MySQL 8.0 instance used to store Guacamole connections and permissions.
 resource "google_sql_database_instance" "guacamole-mysql" {
   /*
     Random instance name needed because:
     "You cannot reuse an instance name for up to a week after you have deleted an instance."
     See https://cloud.google.com/sql/docs/mysql/delete-instance for details.
-    */
-  name             = "${var.db_name}-${random_id.suffix.hex}"
-  database_version = "MYSQL_8_0"
-  region           = var.region
+  */
+  name                = "${var.db_name}-${random_id.suffix.hex}"
+  database_version    = "MYSQL_8_0"
+  region              = var.region
+  deletion_protection = var.deletion_protection
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
 
+  # Configure instance tier and disable public IP so all connections traverse the private VPC via Cloud SQL Auth Proxy.
   settings {
     tier = "db-f1-micro"
     ip_configuration {
@@ -41,6 +48,15 @@ resource "google_sql_database_instance" "guacamole-mysql" {
   }
 }
 
+# Create the guacamole database schema container with modern 4-byte UTF-8 encoding.
+resource "google_sql_database" "guacamole" {
+  name      = "guacamole"
+  instance  = google_sql_database_instance.guacamole-mysql.name
+  charset   = "utf8mb4"
+  collation = "utf8mb4_general_ci"
+}
+
+# Application MySQL user referenced by the guacamole-client JDBC extension.
 resource "google_sql_user" "guac-db-user" {
   name     = var.db_username
   instance = google_sql_database_instance.guacamole-mysql.name
@@ -48,27 +64,10 @@ resource "google_sql_user" "guac-db-user" {
   password = random_password.db_password.result
 }
 
+# Administrative root MySQL user used during initial schema creation from db-mgmt-vm.
 resource "google_sql_user" "guac-db-root" {
   name     = "root"
   instance = google_sql_database_instance.guacamole-mysql.name
   host     = "%"
   password = random_password.db_root_password.result
-}
-
-resource "google_sql_ssl_cert" "db-client-cert" {
-  common_name = "guac-db-client-cert-${random_id.suffix.hex}"
-  instance    = google_sql_database_instance.guacamole-mysql.name
-}
-
-data "external" "db-client-cert-keystore" {
-  program     = ["bash", "${path.module}/tf-infra/bin/generate-keystore.sh"]
-  working_dir = "../"
-
-  query = {
-    keystore_password = "${random_password.keystore_password.result}"
-    common_name       = "${google_sql_ssl_cert.db-client-cert.common_name}"
-    server_ca_cert    = "${google_sql_ssl_cert.db-client-cert.server_ca_cert}"
-    cert              = "${google_sql_ssl_cert.db-client-cert.cert}"
-    private_key       = "${google_sql_ssl_cert.db-client-cert.private_key}"
-  }
 }

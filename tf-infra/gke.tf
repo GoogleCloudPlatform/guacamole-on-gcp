@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Provision a private GKE Autopilot cluster using the dedicated least-privilege node service account.
 resource "google_container_cluster" "gke" {
   provider           = google
   name               = "guacamole-gke"
@@ -21,23 +22,33 @@ resource "google_container_cluster" "gke" {
   network            = google_compute_network.vpc.id
   subnetwork         = google_compute_subnetwork.subnet.name
 
+  # Run cluster nodes on private IPs while keeping the control plane endpoint reachable for kubectl/skaffold.
   private_cluster_config {
     enable_private_nodes    = true
     enable_private_endpoint = false
     master_ipv4_cidr_block  = var.nwr_master_node
   }
 
-  enable_autopilot = true
+  # Enable GKE Autopilot mode and configurable deletion protection.
+  enable_autopilot    = true
+  deletion_protection = var.deletion_protection
 
-  #Updated to TF Provider 5.6, no longer need to explicityly define the below block, as it's the default now
-  #When using TF provider <4.80, need to explicitly define CLOUD_DNS as cluster_dns per b/295958728
-  #dns_config {
-  #  cluster_dns        = "CLOUD_DNS"
-  #  cluster_dns_domain = "cluster.local"
-  #  cluster_dns_scope  = "CLUSTER_SCOPE"
-  #}
+  # Configure Autopilot node auto-provisioning to use the dedicated least-privilege svc-gke-node account.
+  cluster_autoscaling {
+    auto_provisioning_defaults {
+      service_account = google_service_account.svc-gke-node.email
+      oauth_scopes = [
+        "https://www.googleapis.com/auth/cloud-platform",
+      ]
+    }
+  }
 
+  # Use VPC-native IP allocation for Pod and Service ranges.
   ip_allocation_policy {}
+
+  # Wait for required APIs and node service account IAM bindings before creating the cluster.
+  depends_on = [
+    module.project-services,
+    google_project_iam_member.svc-gke-node-iam,
+  ]
 }
-
-

@@ -13,12 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Least-privilege RBAC Role allowing svc-guacamole to read only the guacamole-client-service NEG annotation.
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-    namespace: guacamole
-    name: service-reader
+  namespace: guacamole
+  name: service-reader
+# Restrict access to a single read-only 'get' verb on guacamole-client-service.
 rules:
   - apiGroups: [""]
     resources: ["services"]
-    verbs: ["get", "watch", "list"]
+    resourceNames: ["guacamole-client-service"]
+    verbs: ["get"]

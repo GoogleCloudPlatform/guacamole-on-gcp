@@ -13,12 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Custom-mode VPC network to isolate GKE Autopilot, Cloud SQL, and target VMs.
 resource "google_compute_network" "vpc" {
   provider                = google
   name                    = var.network_name
-  auto_create_subnetworks = "false"
+  auto_create_subnetworks = false
+  depends_on              = [module.project-services]
 }
 
+# Primary regional subnet for GKE Autopilot nodes and Compute Engine VMs.
 resource "google_compute_subnetwork" "subnet" {
   name          = "guacamole-host-subnet"
   region        = var.region
@@ -26,12 +29,14 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range = "10.10.0.0/24"
 }
 
+# Cloud Router attached to the VPC to support Cloud NAT egress for private nodes and VMs.
 resource "google_compute_router" "router" {
   name    = "guacamole-router"
   region  = google_compute_subnetwork.subnet.region
   network = google_compute_network.vpc.id
 }
 
+# Cloud NAT gateway allowing private GKE nodes and db-mgmt-vm to reach outbound packages and Google APIs.
 resource "google_compute_router_nat" "nat" {
   name                               = "guacamole-router-nat"
   router                             = google_compute_router.router.name
@@ -40,6 +45,7 @@ resource "google_compute_router_nat" "nat" {
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
 
+# Internal /16 IP range reserved for VPC peering with Service Networking (Cloud SQL Private IP).
 resource "google_compute_global_address" "private_ip_address" {
   provider      = google
   name          = "private-ip-address"
@@ -49,34 +55,48 @@ resource "google_compute_global_address" "private_ip_address" {
   network       = google_compute_network.vpc.id
 }
 
+# Internal Debian 12 VM used to load the initial MySQL schema and test Guacamole SSH connections.
 resource "google_compute_instance" "db-management" {
-  name         = var.db_management_vm
-  zone         = var.zone
-  machine_type = "e2-micro"
+  name                      = var.db_management_vm
+  zone                      = var.zone
+  machine_type              = "e2-micro"
+  allow_stopping_for_update = true
 
+  # Attach to the private subnet without an external IP address.
   network_interface {
     subnetwork = google_compute_subnetwork.subnet.name
   }
 
+  # Enable Shielded VM secure boot to verify boot integrity.
   shielded_instance_config {
     enable_secure_boot = true
   }
 
+  # Use Debian 12 (Bookworm) for the boot disk image.
   boot_disk {
     initialize_params {
       image = "debian-cloud/debian-12"
     }
   }
 
+  # Attach the least-privilege service account instead of the over-privileged Compute Engine default SA.
+  service_account {
+    email  = google_service_account.svc-gke-node.email
+    scopes = ["cloud-platform"]
+  }
+
+  # Expose the Cloud SQL private IP in instance metadata for convenience.
   metadata = {
     cloud_sql_ip = google_sql_database_instance.guacamole-mysql.private_ip_address
   }
 }
 
+# Allow inbound SSH from Google's Identity-Aware Proxy TCP forwarding range (35.235.240.0/20).
 resource "google_compute_firewall" "vpc-firewall" {
   name    = "permit-ssh-via-iap"
   network = google_compute_network.vpc.name
 
+  # Permit TCP port 22 so operators can tunnel SSH sessions through IAP without public VM IPs.
   allow {
     protocol = "tcp"
     ports    = ["22"]
@@ -85,20 +105,28 @@ resource "google_compute_firewall" "vpc-firewall" {
   source_ranges = ["35.235.240.0/20"]
 }
 
+# Allow guacd pods in GKE to initiate SSH (22) and RDP (3389) connections to target VMs in the VPC.
 resource "google_compute_firewall" "permit-guac-to-vm-traffic" {
   name    = "permit-guacd-to-vm-traffic"
   network = google_compute_network.vpc.name
 
+  # Permit SSH (22) and RDP (3389) from guacd to internal Compute Engine instances.
   allow {
     protocol = "tcp"
     ports    = ["22", "3389"]
   }
 
-  source_ranges = [google_container_cluster.gke.cluster_ipv4_cidr]
+  # Include both the GKE pod CIDR and node subnet CIDR to cover intra-VPC pod-to-VM and SNAT traffic.
+  source_ranges = [
+    google_container_cluster.gke.cluster_ipv4_cidr,
+    google_compute_subnetwork.subnet.ip_cidr_range,
+  ]
 }
 
+# Global static external IPv4 address bound to the GKE Ingress Load Balancer ("guacamole-external").
 resource "google_compute_global_address" "guacamole-external" {
   description  = "External IP Address Reservation for the Load Balancer"
   name         = "guacamole-external"
   address_type = "EXTERNAL"
+  depends_on   = [module.project-services]
 }

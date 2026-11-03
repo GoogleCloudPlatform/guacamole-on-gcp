@@ -13,38 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Enforce modern Terraform CLI and provider versions for single-stage provisioning.
 terraform {
-  required_version = ">=0.15"
+  required_version = ">= 1.5.0"
 
   required_providers {
+    # Primary Google Cloud provider used for all GCP resources and IAM bindings.
     google = {
       source  = "hashicorp/google"
-      version = "5.6.0"
+      version = ">= 5.6.0, < 7.0.0"
     }
 
-    #google-beta = {
-    #  source  = "hashicorp/google-beta"
-    # version = "4.58.0"
-    #}
-
-    external = {
-      source  = "hashicorp/external"
-      version = "2.1.0"
-    }
-
+    # Generates unique suffixes for Cloud SQL instances and random DB credentials.
     random = {
       source  = "hashicorp/random"
-      version = "3.1.0"
+      version = ">= 3.6.0"
     }
 
+    # Renders local Kustomize properties, manifests, and sensitive secret files.
     local = {
       source  = "hashicorp/local"
-      version = "2.1.0"
-    }
-
-    null = {
-      source  = "hashicorp/null"
-      version = "3.1.0"
+      version = ">= 2.5.0"
     }
   }
 }

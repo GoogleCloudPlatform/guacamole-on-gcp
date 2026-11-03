@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #
 # Copyright 2020 Google LLC
 #
@@ -15,14 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-export CLOUD_SQL_INSTANCE=`terraform output -state tf-infra/terraform.tfstate -json db_address | jq -r .`
-export ZONE=`terraform output -state tf-infra/terraform.tfstate -json cloud_zone | jq -r .`
-export REGION=`terraform output -state tf-infra/terraform.tfstate -json cloud_region | jq -r .`
-export DB_MGMT_VM=`terraform output -state tf-infra/terraform.tfstate -json db_mgmt_vm | jq -r .`
-export PROJECT_ID=`terraform output -state tf-infra/terraform.tfstate -json project_id | jq -r .`
-export GKE_CLUSTER=`terraform output -state tf-infra/terraform.tfstate -json gke_cluster_name | jq -r .`
-export GUACAMOLE_URL="https://"`terraform output -state tf-infra/terraform.tfstate -json external_url | jq -r .`"/guacamole"
-export SUBNET=`terraform output -state tf-infra/terraform.tfstate -json subnet | jq -r .`
+# Helper script meant to be sourced (`source bin/read-tf-output.sh`) to export
+# Terraform outputs as environment variables for subsequent gcloud / skaffold commands.
+# Do NOT enable `set -e` or call `exit` here so sourcing never terminates the user's shell.
 
+# Export Cloud SQL private IP, instance name, and Cloud SQL Auth Proxy connection name.
+export CLOUD_SQL_IP="$(terraform -chdir=tf-infra output -raw db_address)"
+export CLOUD_SQL_INSTANCE="$(terraform -chdir=tf-infra output -raw cloud_sql_instance_name)"
+export CLOUD_SQL_CONNECTION_NAME="$(terraform -chdir=tf-infra output -raw cloud_sql_connection_name)"
 
-echo "Database Root Password: `terraform output -state tf-infra/terraform.tfstate db_root_password`"
+# Export project, location, GKE cluster, VM, subnet, Artifact Registry, and external URL outputs.
+export ARTIFACT_REGISTRY_REPO="$(terraform -chdir=tf-infra output -raw artifact_registry_repo)"
+export ZONE="$(terraform -chdir=tf-infra output -raw cloud_zone)"
+export REGION="$(terraform -chdir=tf-infra output -raw cloud_region)"
+export DB_MGMT_VM="$(terraform -chdir=tf-infra output -raw db_mgmt_vm)"
+export PROJECT_ID="$(terraform -chdir=tf-infra output -raw project_id)"
+export GKE_CLUSTER="$(terraform -chdir=tf-infra output -raw gke_cluster_name)"
+export GUACAMOLE_URL="https://$(terraform -chdir=tf-infra output -raw external_url)/guacamole"
+export SUBNET="$(terraform -chdir=tf-infra output -raw subnet)"
+
+# Display the generated MySQL root password for initial schema loading from db-mgmt-vm.
+echo "Database Root Password: $(terraform -chdir=tf-infra output -raw db_root_password)"

@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Google-managed SSL certificate provisioned automatically by GKE for the Load Balancer nip.io domain.
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
-    name: guacamole-client-cert
-    namespace: guacamole
+  name: guacamole-client-cert
+  namespace: guacamole
 spec:
-    domains:
-        - ${remote_url}
+  domains:
+    - ${remote_url}

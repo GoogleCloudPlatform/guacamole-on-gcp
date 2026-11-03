@@ -1,17 +1,31 @@
-# Generated Configuration / Keys
+# Generated Configuration & Rendered Manifests
 client/client-settings.properties
 client/db-secrets.properties
-client/iap-secrets.properties
 client/guacamole.properties
-server-ca.pem
-truststore.jks
-clientstore.jks
-clientstore.pass
-env/
-client_secret*
-insert-admin-user.sql
-client/tomcat/conf/server.xml
 client/kubernetes-manifests/guacamole-client.managedcert.yaml
+client/kubernetes-manifests/guacamole-client.serviceaccount.yaml
+insert-admin-user.sql
 
-# IDE
-.vscode
+# Terraform State, Lock Files & Working Directories
+**/.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terraform.lock.hcl
+
+# Maven Build Output
+**/target/
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
