@@ -180,8 +180,9 @@ class AuthenticationProviderServiceTest {
 
   @Test
   void missingRequestOrMissingHeaderThrowsInvalidCredentials() {
-    // Verify that null HttpServletRequest is rejected with GuacamoleInvalidCredentialsException.
-    Credentials noRequestCredentials = new Credentials(null, null, (HttpServletRequest) null);
+    // Mock Credentials returning a null HttpServletRequest (Guacamole 1.6.0 RequestDetails requires non-null in constructor).
+    Credentials noRequestCredentials = mock(Credentials.class);
+    when(noRequestCredentials.getRequest()).thenReturn(null);
     assertThrows(
         GuacamoleInvalidCredentialsException.class,
         () -> authService.authenticateUser(noRequestCredentials));
