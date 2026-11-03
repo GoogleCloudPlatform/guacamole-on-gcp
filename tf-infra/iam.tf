@@ -17,14 +17,28 @@
 resource "google_project_iam_member" "iap-tcp-user" {
   project = var.project_id
   role    = "roles/iap.tunnelResourceAccessor"
-  member  = "user:${data.google_client_openid_userinfo.me.email}"
+  member  = local.admin_iam_member
+
+  lifecycle {
+    precondition {
+      condition     = local.admin_email != ""
+      error_message = "Could not detect an email address from Application Default Credentials. Pass -var=\"admin_email=you@example.com\" or run: gcloud auth application-default login"
+    }
+  }
 }
 
 # Grant the deploying operator permission to access the Guacamole web UI through Identity-Aware Proxy.
 resource "google_project_iam_member" "iap-web-user" {
   project = var.project_id
   role    = "roles/iap.httpsResourceAccessor"
-  member  = "user:${data.google_client_openid_userinfo.me.email}"
+  member  = local.admin_iam_member
+
+  lifecycle {
+    precondition {
+      condition     = local.admin_email != ""
+      error_message = "Could not detect an email address from Application Default Credentials. Pass -var=\"admin_email=you@example.com\" or run: gcloud auth application-default login"
+    }
+  }
 }
 
 # Dedicated GCP Service Account bound to the Kubernetes svc-guacamole ServiceAccount via Workload Identity.

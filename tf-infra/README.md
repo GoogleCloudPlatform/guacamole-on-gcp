@@ -26,6 +26,7 @@ This directory contains the single-stage Terraform configuration that provisions
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `project_id` | `string` | *(Required)* | Target Google Cloud project ID. |
+| `admin_email` | `string` | `""` | Google account email granted IAP access and Guacamole admin permissions (defaults to the email from Application Default Credentials). |
 | `region` | `string` | `"us-central1"` | Google Cloud region for GKE, Cloud SQL, and Artifact Registry. |
 | `zone` | `string` | `"us-central1-c"` | Google Cloud zone for `db-mgmt-vm`. |
 | `network_name` | `string` | `"guacamole-vpc"` | Custom VPC network name. |

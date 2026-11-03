@@ -17,7 +17,7 @@
 # Uses local_sensitive_file (0600) and lowercases the email to match IAP extension normalization.
 resource "local_sensitive_file" "insert-admin-user" {
   content = templatefile("${path.module}/templates/insert-admin-user.sql.tmpl", {
-    admin_email = lower(data.google_client_openid_userinfo.me.email)
+    admin_email = lower(local.admin_email)
   })
   filename        = "${path.module}/../insert-admin-user.sql"
   file_permission = "0600"

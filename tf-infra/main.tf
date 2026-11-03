@@ -13,14 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Configure the Google Cloud provider with the target project, region, and zone.
+# Configure the Google Cloud provider with the target project, region, zone, and OpenID email scope.
 provider "google" {
   region  = var.region
   zone    = var.zone
   project = var.project_id
+  scopes = [
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/userinfo.email",
+  ]
 }
 
-# Define least-privilege node IAM roles and compute the external sslip.io domain in HCL.
+# Define least-privilege node IAM roles, resolve the admin identity, and compute the external sslip.io domain.
 locals {
   # Standard least-privilege IAM roles required for GKE Autopilot nodes to write
   # logs/metrics and pull container images from Artifact Registry.
@@ -31,6 +35,12 @@ locals {
     "roles/autoscaling.metricsWriter",
     "roles/artifactregistry.reader",
   ]
+
+  # Use explicit var.admin_email when provided; otherwise fall back to the OpenID email from ADC.
+  admin_email = trimspace(var.admin_email) != "" ? trimspace(var.admin_email) : trimspace(data.google_client_openid_userinfo.me.email)
+
+  # Format the IAM principal prefix appropriately for human Google accounts vs GCP service accounts.
+  admin_iam_member = endswith(local.admin_email, ".gserviceaccount.com") ? "serviceAccount:${local.admin_email}" : "user:${local.admin_email}"
 
   # Replace dots with dashes in the reserved global IP when using the default sslip.io wildcard DNS.
   remote_url = var.external_url == "sslip.io" ? "${replace(google_compute_global_address.guacamole-external.address, ".", "-")}.sslip.io" : var.external_url

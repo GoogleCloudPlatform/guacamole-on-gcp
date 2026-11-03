@@ -19,6 +19,14 @@ variable "project_id" {
   description = "The Google Cloud project ID to deploy Guacamole into"
 }
 
+# Optional explicit Google account email for IAP access and Guacamole admin bootstrap.
+# Defaults to the email from Application Default Credentials (google_client_openid_userinfo).
+variable "admin_email" {
+  type        = string
+  description = "Google account email granted IAP access and Guacamole admin permissions (defaults to ADC user email)"
+  default     = ""
+}
+
 # Regional deployment location for GKE Autopilot, Cloud SQL, and Artifact Registry.
 variable "region" {
   type        = string
