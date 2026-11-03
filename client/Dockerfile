@@ -34,8 +34,12 @@ COPY ./extensions/. ${BUILD_DIR}/extensions
 # Compile, test, and package the extension and its runtime libraries into /etc/guacamole.
 RUN /opt/guacamole/bin/build-googleiap.sh "${BUILD_DIR}/extensions/guacamole-auth-googleiap" /etc/guacamole
 
-# Copy the rendered guacamole.properties into /etc/guacamole with guacamole user ownership.
-COPY --chown=guacamole:guacamole ./guacamole.properties /etc/guacamole/guacamole.properties
+# Copy guacamole.properties into /etc/guacamole when present (rendered by Terraform apply).
+# Including ./bin/build-googleiap.sh ensures the COPY glob succeeds even before terraform apply runs.
+COPY ./bin/build-googleiap.sh ./guacamole.properties* /tmp/guacamole-props/
+RUN if [ -f /tmp/guacamole-props/guacamole.properties ]; then \
+        cp /tmp/guacamole-props/guacamole.properties /etc/guacamole/guacamole.properties; \
+    fi
 
 # Stage 2: Assemble the production guacamole-client-iap runtime image on top of guacamole/guacamole:1.6.0.
 FROM $CLIENT_IMAGE
