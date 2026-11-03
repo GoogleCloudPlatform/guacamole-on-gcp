@@ -15,12 +15,12 @@
 
 # Provision a private GKE Autopilot cluster using the dedicated least-privilege node service account.
 resource "google_container_cluster" "gke" {
-  provider           = google
-  name               = "guacamole-gke"
-  location           = var.region
-  networking_mode    = "VPC_NATIVE"
-  network            = google_compute_network.vpc.id
-  subnetwork         = google_compute_subnetwork.subnet.name
+  provider        = google
+  name            = "guacamole-gke"
+  location        = var.region
+  networking_mode = "VPC_NATIVE"
+  network         = google_compute_network.vpc.id
+  subnetwork      = google_compute_subnetwork.subnet.name
 
   # Run cluster nodes on private IPs while keeping the control plane endpoint reachable for kubectl/skaffold.
   private_cluster_config {
