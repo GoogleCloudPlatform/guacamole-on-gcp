@@ -23,15 +23,6 @@ resource "local_sensitive_file" "insert-admin-user" {
   file_permission = "0600"
 }
 
-# Render guacamole.properties with the project ID and numeric project number for IAP JWT verification.
-resource "local_file" "guacamole-properties" {
-  content = templatefile("${path.module}/templates/guacamole.properties.tmpl", {
-    project_id     = var.project_id
-    project_number = data.google_project.project.number
-  })
-  filename = "${path.module}/../client/guacamole.properties"
-}
-
 # Render the GKE ManagedCertificate manifest with the resolved external domain (sslip.io or custom).
 resource "local_file" "guacamole-client-managedcert" {
   content = templatefile("${path.module}/templates/guacamole-client.managedcert.yaml.tmpl", {
@@ -54,6 +45,8 @@ resource "local_file" "client-settings-properties" {
   content = templatefile("${path.module}/templates/client-settings.properties.tmpl", {
     cloud_sql_connection_name = google_sql_database_instance.guacamole-mysql.connection_name
     external_ip               = replace(google_compute_global_address.guacamole-external.address, ".", "\\\\.")
+    project_id                = var.project_id
+    project_number            = data.google_project.project.number
   })
   filename = "${path.module}/../client/client-settings.properties"
 }

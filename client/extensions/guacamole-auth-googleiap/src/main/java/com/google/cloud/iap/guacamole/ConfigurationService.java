@@ -33,10 +33,12 @@ import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.util.ClientBuilder;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Map;
 import org.apache.guacamole.GuacamoleException;
 import org.apache.guacamole.GuacamoleServerException;
 import org.apache.guacamole.environment.Environment;
+import org.apache.guacamole.properties.StringGuacamoleProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +57,15 @@ public class ConfigurationService {
 
   /** JSON object key within the NEG status annotation mapping service ports to NEG names. */
   static final String ANNOTATION_NEG_GROUP_KEY = "network_endpoint_groups";
+
+  /** Default Kubernetes Service name for the Guacamole Client when not explicitly overridden. */
+  static final String DEFAULT_CLIENT_SERVICE_NAME = "guacamole-client-service";
+
+  /** Default Kubernetes Namespace for the Guacamole Client Service when not explicitly overridden. */
+  static final String DEFAULT_CLIENT_SERVICE_NAMESPACE = "guacamole";
+
+  /** Default Kubernetes Service port mapped to the GKE Ingress NEG when not explicitly overridden. */
+  static final String DEFAULT_CLIENT_SERVICE_PORT = "80";
 
   /** The Guacamole server environment. */
   @Inject private Environment environment;
@@ -78,41 +89,43 @@ public class ConfigurationService {
   }
 
   /**
-   * Returns the Google Cloud Project ID as configured in {@code guacamole.properties}.
+   * Returns the Google Cloud Project ID from {@code guacamole.properties} or the {@code
+   * GOOGLE_PROJECT_ID} environment variable.
    *
    * @return The Google Cloud host project ID.
    * @throws GuacamoleException If the required property is missing or cannot be parsed.
    */
   public String getProjectId() throws GuacamoleException {
-    // Require google-project-id so misconfigurations fail fast with a clear error message.
-    return environment.getRequiredProperty(GoogleIapGuacamoleProperties.GOOGLE_PROJECT_ID);
+    // Require google-project-id (or GOOGLE_PROJECT_ID) so misconfigurations fail fast.
+    return getRequiredProperty(GoogleIapGuacamoleProperties.GOOGLE_PROJECT_ID);
   }
 
   /**
-   * Returns the numeric Google Cloud Project Number as configured in {@code guacamole.properties}.
+   * Returns the numeric Google Cloud Project Number from {@code guacamole.properties} or the {@code
+   * GOOGLE_PROJECT_NUMBER} environment variable.
    *
    * @return The numeric Google Cloud project number used in IAP JWT audience claims.
    * @throws GuacamoleException If the required property is missing or cannot be parsed.
    */
   public String getProjectNumber() throws GuacamoleException {
-    // Require google-project-number because the IAP JWT aud claim uses the numeric project number.
-    return environment.getRequiredProperty(GoogleIapGuacamoleProperties.GOOGLE_PROJECT_NUMBER);
+    // Require google-project-number (or GOOGLE_PROJECT_NUMBER) for the IAP JWT aud claim.
+    return getRequiredProperty(GoogleIapGuacamoleProperties.GOOGLE_PROJECT_NUMBER);
   }
 
   /**
    * Returns the numeric Google Cloud Load Balancer BackendService ID used in the IAP JWT audience
-   * claim. Checks for an optional explicit property override first, then falls back to lazy,
+   * claim. Checks for an optional explicit property/env override first, then falls back to lazy,
    * thread-safe dynamic discovery via the Kubernetes and Compute Engine APIs.
    *
    * @return The numeric Google Cloud BackendService ID.
    * @throws GuacamoleException If the BackendService ID cannot be resolved or validated.
    */
   public String getBackendServiceId() throws GuacamoleException {
-    // Check if an explicit google-backend-service-id override is configured in guacamole.properties.
+    // Check if an explicit google-backend-service-id (or GOOGLE_BACKEND_SERVICE_ID) override is set.
     String configuredId =
-        environment.getProperty(GoogleIapGuacamoleProperties.GOOGLE_BACKEND_SERVICE_ID);
-    if (configuredId != null && !configuredId.trim().isEmpty()) {
-      return configuredId.trim();
+        getOptionalProperty(GoogleIapGuacamoleProperties.GOOGLE_BACKEND_SERVICE_ID, null);
+    if (configuredId != null) {
+      return configuredId;
     }
 
     // Fast path: return the already-resolved BackendService ID without locking.
@@ -127,15 +140,20 @@ public class ConfigurationService {
         return this.cachedBackendServiceId;
       }
 
-      // Read all required K8s Service coordinates before invoking external APIs.
+      // Read Kubernetes Service coordinates (falling back to standard GKE manifest defaults).
       String projectId = getProjectId();
       String serviceName =
-          environment.getRequiredProperty(GoogleIapGuacamoleProperties.GOOGLE_CLIENT_SERVICE_NAME);
+          getOptionalProperty(
+              GoogleIapGuacamoleProperties.GOOGLE_CLIENT_SERVICE_NAME,
+              DEFAULT_CLIENT_SERVICE_NAME);
       String namespace =
-          environment.getRequiredProperty(
-              GoogleIapGuacamoleProperties.GOOGLE_CLIENT_SERVICE_NAMESPACE);
+          getOptionalProperty(
+              GoogleIapGuacamoleProperties.GOOGLE_CLIENT_SERVICE_NAMESPACE,
+              DEFAULT_CLIENT_SERVICE_NAMESPACE);
       String servicePort =
-          environment.getRequiredProperty(GoogleIapGuacamoleProperties.GOOGLE_CLIENT_SERVICE_PORT);
+          getOptionalProperty(
+              GoogleIapGuacamoleProperties.GOOGLE_CLIENT_SERVICE_PORT,
+              DEFAULT_CLIENT_SERVICE_PORT);
 
       // Resolve the numeric BackendService ID via K8s NEG annotation + Compute Engine API.
       String resolvedId = resolveBackendServiceId(projectId, serviceName, namespace, servicePort);
@@ -153,6 +171,75 @@ public class ConfigurationService {
           serviceName);
       return this.cachedBackendServiceId;
     }
+  }
+
+  /**
+   * Resolves a configuration property from the Guacamole {@link Environment}, falling back to the
+   * corresponding uppercase underscore OS environment variable (e.g., {@code GOOGLE_PROJECT_ID})
+   * and finally to {@code defaultValue} if neither is set.
+   *
+   * @param property The Guacamole property definition to look up.
+   * @param defaultValue The fallback value to return when neither property nor env var is set.
+   * @return The trimmed configuration value, or {@code defaultValue} if unset.
+   * @throws GuacamoleException If the Guacamole environment fails to parse the property.
+   */
+  private String getOptionalProperty(StringGuacamoleProperty property, String defaultValue)
+      throws GuacamoleException {
+    // Check guacamole.properties (and LocalEnvironment if enable-environment-properties is set).
+    String value = environment.getProperty(property);
+    if (value != null && !value.trim().isEmpty()) {
+      return value.trim();
+    }
+
+    // Fall back to direct OS environment variable lookup (e.g., GOOGLE_PROJECT_ID).
+    String envName = property.getName().replace('-', '_').toUpperCase(Locale.ROOT);
+    String envValue = getEnvironmentVariable(envName);
+    if (envValue != null && !envValue.trim().isEmpty()) {
+      return envValue.trim();
+    }
+
+    return defaultValue;
+  }
+
+  /**
+   * Resolves a required configuration property from the Guacamole {@link Environment} or its
+   * corresponding OS environment variable, throwing a {@link GuacamoleException} if neither is set.
+   *
+   * @param property The required Guacamole property definition.
+   * @return The non-empty trimmed configuration value.
+   * @throws GuacamoleException If the property is missing from both Guacamole and OS environments.
+   */
+  private String getRequiredProperty(StringGuacamoleProperty property) throws GuacamoleException {
+    // First check getProperty() and OS environment variable fallback.
+    String value = getOptionalProperty(property, null);
+    if (value != null) {
+      return value;
+    }
+
+    // Delegate to environment.getRequiredProperty() so LocalEnvironment or test mocks can supply/throw.
+    String requiredValue = environment.getRequiredProperty(property);
+    if (requiredValue != null && !requiredValue.trim().isEmpty()) {
+      return requiredValue.trim();
+    }
+
+    String envName = property.getName().replace('-', '_').toUpperCase(Locale.ROOT);
+    throw new GuacamoleServerException(
+        "Property '"
+            + property.getName()
+            + "' (or environment variable '"
+            + envName
+            + "') is required.");
+  }
+
+  /**
+   * Reads an OS environment variable by name. Package-private to allow deterministic overriding in
+   * unit tests.
+   *
+   * @param name The environment variable name (e.g., {@code GOOGLE_PROJECT_ID}).
+   * @return The environment variable value, or {@code null} if not defined.
+   */
+  String getEnvironmentVariable(String name) {
+    return System.getenv(name);
   }
 
   /**

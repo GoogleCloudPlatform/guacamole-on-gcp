@@ -34,20 +34,13 @@ COPY ./extensions/. ${BUILD_DIR}/extensions
 # Compile, test, and package the extension and its runtime libraries into /etc/guacamole.
 RUN /opt/guacamole/bin/build-googleiap.sh "${BUILD_DIR}/extensions/guacamole-auth-googleiap" /etc/guacamole
 
-# Copy guacamole.properties into /etc/guacamole when present (rendered by Terraform apply).
-# Including ./bin/build-googleiap.sh ensures the COPY glob succeeds even before terraform apply runs.
-COPY ./bin/build-googleiap.sh ./guacamole.properties* /tmp/guacamole-props/
-RUN if [ -f /tmp/guacamole-props/guacamole.properties ]; then \
-        cp /tmp/guacamole-props/guacamole.properties /etc/guacamole/guacamole.properties; \
-    fi
-
 # Stage 2: Assemble the production guacamole-client-iap runtime image on top of guacamole/guacamole:1.6.0.
 FROM $CLIENT_IMAGE
 
 # Guacamole 1.6.0 uses /etc/guacamole as the template directory to populate $GUACAMOLE_HOME at startup.
 WORKDIR /etc/guacamole
 
-# Copy the compiled extension JAR, runtime dependency JARs, and guacamole.properties with UID/GID 1001 ownership.
+# Copy the compiled extension JAR and runtime dependency JARs with UID/GID 1001 ownership.
 COPY --from=builder --chown=guacamole:guacamole /etc/guacamole/ .
 
 # Expose Tomcat's unprivileged HTTP port and start Guacamole via the 1.6.0 entrypoint script.

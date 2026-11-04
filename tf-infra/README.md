@@ -16,7 +16,7 @@ This directory contains the single-stage Terraform configuration that provisions
 | [`cloudsql.tf`](cloudsql.tf) | Provisions the Private Service Access peering (`deletion_policy = "ABANDON"`), the private Cloud SQL for MySQL 8.0 instance, the `guacamole` database (`utf8mb4`), and the application/root MySQL users. |
 | [`artifactrepo.tf`](artifactrepo.tf) | Creates the `guac-repo` Docker repository in Artifact Registry and binds `roles/artifactregistry.reader` to `svc-gke-node` and `roles/artifactregistry.writer` to the Compute Engine default service account (for Cloud Build). |
 | [`iam.tf`](iam.tf) | Creates `svc-guacamole` and `svc-gke-node`, defines the custom `iap_jwt_verifier` role (`compute.backendServices.get`), grants `roles/cloudsql.client` to `svc-guacamole`, and binds `roles/iam.workloadIdentityUser` to `serviceAccount:<project_id>.svc.id.goog[guacamole/svc-guacamole]`. |
-| [`templates.tf`](templates.tf) | Renders `insert-admin-user.sql`, `client/guacamole.properties`, `client/client-settings.properties`, `client/db-secrets.properties`, `guacamole-client.managedcert.yaml`, and `guacamole-client.serviceaccount.yaml` from [`templates/`](templates/). |
+| [`templates.tf`](templates.tf) | Renders `insert-admin-user.sql`, `client/client-settings.properties`, `client/db-secrets.properties`, `guacamole-client.managedcert.yaml`, and `guacamole-client.serviceaccount.yaml` from [`templates/`](templates/). |
 | [`outputs.tf`](outputs.tf) | Exports project, network, GKE, Cloud SQL (`db_address`, `cloud_sql_instance_name`, `cloud_sql_connection_name`), Artifact Registry (`artifact_registry_repo`), and URL outputs. |
 
 ---
@@ -44,8 +44,7 @@ This directory contains the single-stage Terraform configuration that provisions
 
 Running `terraform apply` generates the following git-ignored files in the workspace:
 - `../insert-admin-user.sql` (`0600`): Idempotent SQL script granting `ADMINISTER` and `AUDIT` permissions to the deploying Google identity.
-- `../client/guacamole.properties`: Contains `google-project-id`, `google-project-number`, and the Kubernetes Service coordinates used by `guacamole-auth-googleiap`.
-- `../client/client-settings.properties`: Consumed by Kustomize to create the `guacamole-client-settings` ConfigMap (`CLOUD_SQL_CONNECTION_NAME`, `MYSQL_HOSTNAME=127.0.0.1`, `REMOTE_IP_VALVE_ENABLED=true`, `REMOTE_IP_VALVE_INTERNAL_PROXIES`, `LOG_LEVEL=info`).
+- `../client/client-settings.properties`: Consumed by Kustomize to create the `guacamole-client-settings` ConfigMap (`ENABLE_ENVIRONMENT_PROPERTIES=true`, `GOOGLE_PROJECT_ID`, `GOOGLE_PROJECT_NUMBER`, `GOOGLE_CLIENT_SERVICE_*`, `CLOUD_SQL_CONNECTION_NAME`, `MYSQL_HOSTNAME=127.0.0.1`, `REMOTE_IP_VALVE_ENABLED=true`, `REMOTE_IP_VALVE_INTERNAL_PROXIES`, `LOG_LEVEL=info`).
 - `../client/db-secrets.properties` (`0600`): Consumed by Kustomize to create the `db-user-pass` Secret (`MYSQL_USERNAME`, `MYSQL_PASSWORD`).
 - `../client/kubernetes-manifests/guacamole-client.managedcert.yaml`: GKE `ManagedCertificate` manifest for the resolved external domain.
 - `../client/kubernetes-manifests/guacamole-client.serviceaccount.yaml`: Kubernetes `ServiceAccount` (`svc-guacamole`) annotated with `iam.gke.io/gcp-service-account`.

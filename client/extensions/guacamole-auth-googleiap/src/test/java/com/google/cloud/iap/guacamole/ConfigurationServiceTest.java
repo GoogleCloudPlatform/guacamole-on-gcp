@@ -157,4 +157,42 @@ class ConfigurationServiceTest {
         GuacamoleException.class,
         () -> ConfigurationService.parseNegNameFromAnnotation(validNegJson, "8080"));
   }
+
+  @Test
+  void environmentVariablesAndDefaultServiceCoordinatesAreUsedWhenPropertiesUnset()
+      throws Exception {
+    // Create an empty Environment where guacamole.properties does not define any GOOGLE_* settings.
+    Environment emptyEnvironment = mock(Environment.class);
+
+    // Capture the coordinates passed to resolveBackendServiceId when using env vars + defaults.
+    AtomicReference<String> capturedCoordinates = new AtomicReference<>();
+    ConfigurationService service =
+        new ConfigurationService(emptyEnvironment) {
+          @Override
+          String getEnvironmentVariable(String name) {
+            if ("GOOGLE_PROJECT_ID".equals(name)) {
+              return "env-project-id";
+            }
+            if ("GOOGLE_PROJECT_NUMBER".equals(name)) {
+              return "987654321098";
+            }
+            return null;
+          }
+
+          @Override
+          String resolveBackendServiceId(
+              String projectId, String serviceName, String namespace, String servicePort) {
+            capturedCoordinates.set(
+                projectId + "/" + namespace + "/" + serviceName + ":" + servicePort);
+            return "6666666666666666666";
+          }
+        };
+
+    // Verify project ID, project number, and default K8s Service coordinates resolve cleanly.
+    assertEquals("env-project-id", service.getProjectId());
+    assertEquals("987654321098", service.getProjectNumber());
+    assertEquals("6666666666666666666", service.getBackendServiceId());
+    assertEquals(
+        "env-project-id/guacamole/guacamole-client-service:80", capturedCoordinates.get());
+  }
 }
