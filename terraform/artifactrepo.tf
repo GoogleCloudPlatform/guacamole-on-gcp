@@ -39,3 +39,30 @@ resource "google_artifact_registry_repository_iam_member" "artifactregistry-writ
   role       = "roles/artifactregistry.writer"
   member     = "serviceAccount:${data.google_compute_default_service_account.default.email}"
 }
+
+# Cloud Build staging and build-logs bucket expected by `skaffold run -p cloudbuild` (<project_id>_cloudbuild).
+# Pre-creating this bucket avoids a Skaffold bug where `createBucketIfNotExists` fails on wrapped 404 errors,
+# and `force_destroy = true` ensures `terraform destroy` removes staged build logs cleanly.
+resource "google_storage_bucket" "cloudbuild-bucket" {
+  name                        = "${var.project_id}_cloudbuild"
+  project                     = var.project_id
+  location                    = var.region
+  force_destroy               = true
+  uniform_bucket_level_access = true
+  depends_on                  = [module.project-services]
+}
+
+# Allow the Compute Engine default service account (used by Cloud Build) to read staged source archives
+# and write build logs in the <project_id>_cloudbuild bucket.
+resource "google_storage_bucket_iam_member" "cloudbuild-bucket-admin-compute-default" {
+  bucket = google_storage_bucket.cloudbuild-bucket.name
+  role   = "roles/storage.admin"
+  member = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+}
+
+# Allow the Compute Engine default service account (used by Cloud Build) to write build logs to Cloud Logging.
+resource "google_project_iam_member" "cloudbuild-logging-compute-default" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${data.google_compute_default_service_account.default.email}"
+}

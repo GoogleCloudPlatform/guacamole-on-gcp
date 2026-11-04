@@ -104,5 +104,6 @@ variable "required_apis" {
     "servicenetworking.googleapis.com",
     "serviceusage.googleapis.com",
     "sqladmin.googleapis.com",
+    "storage.googleapis.com",
   ]
 }
