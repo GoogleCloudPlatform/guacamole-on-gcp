@@ -20,12 +20,12 @@ metadata:
   name: guacamole-config-default
   namespace: guacamole
 spec:
-  # Probe /guacamole/index.html on Tomcat port 8080 so the Load Balancer verifies web app readiness.
+  # Probe /index.html on Tomcat port 8080 so the Load Balancer verifies web app readiness.
   healthCheck:
     checkIntervalSec: 15
     port: 8080
     type: HTTP
-    requestPath: /guacamole/index.html
+    requestPath: /index.html
   # Keep the HTTP(S) Load Balancer connection open for up to 2 hours for active Guacamole WebSockets.
   timeoutSec: 7200
   # Enable Google Cloud Identity-Aware Proxy on the Load Balancer BackendService without an OAuth secret.

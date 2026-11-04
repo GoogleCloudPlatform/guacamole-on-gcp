@@ -43,7 +43,7 @@ This directory contains the single-stage Terraform configuration that provisions
 
 Running `terraform apply` generates the following git-ignored files in the workspace:
 - `../insert-admin-user.sql` (`0600`): Consumed by Kustomize to create the `guacamole-db-init` Secret executed by the `init-db` `initContainer` to grant `ADMINISTER` and `AUDIT` permissions to the deploying Google identity.
-- `../client/client-settings.properties`: Consumed by Kustomize to create the `guacamole-client-settings` ConfigMap (`ENABLE_ENVIRONMENT_PROPERTIES=true`, `GOOGLE_PROJECT_ID`, `GOOGLE_PROJECT_NUMBER`, `GOOGLE_CLIENT_SERVICE_*`, `CLOUD_SQL_CONNECTION_NAME`, `MYSQL_HOSTNAME=127.0.0.1`, `REMOTE_IP_VALVE_ENABLED=true`, `REMOTE_IP_VALVE_INTERNAL_PROXIES`, `LOG_LEVEL=info`).
+- `../client/client-settings.properties`: Consumed by Kustomize to create the `guacamole-client-settings` ConfigMap (`WEBAPP_CONTEXT=ROOT`, `ENABLE_ENVIRONMENT_PROPERTIES=true`, `GOOGLE_PROJECT_ID`, `GOOGLE_PROJECT_NUMBER`, `GOOGLE_CLIENT_SERVICE_*`, `CLOUD_SQL_CONNECTION_NAME`, `MYSQL_HOSTNAME=127.0.0.1`, `REMOTE_IP_VALVE_ENABLED=true`, `REMOTE_IP_VALVE_INTERNAL_PROXIES`, `LOG_LEVEL=info`).
 - `../client/db-secrets.properties` (`0600`): Consumed by Kustomize to create the `db-user-pass` Secret (`MYSQL_USERNAME`, `MYSQL_PASSWORD`).
 - `../client/kubernetes-manifests/guacamole-client.managedcert.yaml`: GKE `ManagedCertificate` manifest for the resolved external domain.
 - `../client/kubernetes-manifests/guacamole-client.serviceaccount.yaml`: Kubernetes `ServiceAccount` (`svc-guacamole`) annotated with `iam.gke.io/gcp-service-account`.

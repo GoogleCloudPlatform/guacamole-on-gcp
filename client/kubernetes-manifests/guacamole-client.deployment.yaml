@@ -186,10 +186,10 @@ spec:
         - containerPort: 8080
           name: serving-port
           protocol: TCP
-        # Readiness probe tells the GKE Ingress Load Balancer when Tomcat is ready to serve /guacamole.
+        # Readiness probe tells the GKE Ingress Load Balancer when Tomcat is ready to serve /.
         readinessProbe:
           httpGet:
-            path: /guacamole
+            path: /
             port: serving-port
           initialDelaySeconds: 20
           periodSeconds: 10
@@ -198,7 +198,7 @@ spec:
         # Liveness probe restarts the container only after 3 consecutive failures to avoid false restarts.
         livenessProbe:
           httpGet:
-            path: /guacamole
+            path: /
             port: serving-port
           failureThreshold: 3
           periodSeconds: 10
@@ -207,7 +207,7 @@ spec:
         # Startup probe allows up to 5 minutes for initial container and extension initialization.
         startupProbe:
           httpGet:
-            path: /guacamole
+            path: /
             port: serving-port
           failureThreshold: 30
           periodSeconds: 10
