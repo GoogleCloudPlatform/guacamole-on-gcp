@@ -58,12 +58,6 @@ resource "random_password" "db_password" {
   special = false
 }
 
-# Random password generated for the Cloud SQL root user.
-resource "random_password" "db_root_password" {
-  length  = 16
-  special = false
-}
-
 # Enable all required Google Cloud APIs before creating project resources.
 module "project-services" {
   source  = "terraform-google-modules/project-factory/google//modules/project_services"

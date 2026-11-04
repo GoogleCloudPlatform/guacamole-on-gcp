@@ -69,13 +69,6 @@ variable "external_url" {
   default     = "sslip.io"
 }
 
-# Name of the internal GCE VM used to initialize the Cloud SQL schema and test SSH.
-variable "db_management_vm" {
-  type        = string
-  description = "Google Compute Engine VM used to manage the Guacamole Database."
-  default     = "db-mgmt-vm"
-}
-
 # Internal RFC 1918 /28 CIDR block reserved for the GKE private cluster control plane.
 variable "nwr_master_node" {
   type        = string

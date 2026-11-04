@@ -36,7 +36,7 @@ resource "google_compute_router" "router" {
   network = google_compute_network.vpc.id
 }
 
-# Cloud NAT gateway allowing private GKE nodes and db-mgmt-vm to reach outbound packages and Google APIs.
+# Cloud NAT gateway allowing private GKE nodes to reach outbound packages and Google APIs.
 resource "google_compute_router_nat" "nat" {
   name                               = "guacamole-router-nat"
   router                             = google_compute_router.router.name
@@ -53,42 +53,6 @@ resource "google_compute_global_address" "private_ip_address" {
   address_type  = "INTERNAL"
   prefix_length = 16
   network       = google_compute_network.vpc.id
-}
-
-# Internal Debian 12 VM used to load the initial MySQL schema and test Guacamole SSH connections.
-resource "google_compute_instance" "db-management" {
-  name                      = var.db_management_vm
-  zone                      = var.zone
-  machine_type              = "e2-micro"
-  allow_stopping_for_update = true
-
-  # Attach to the private subnet without an external IP address.
-  network_interface {
-    subnetwork = google_compute_subnetwork.subnet.name
-  }
-
-  # Enable Shielded VM secure boot to verify boot integrity.
-  shielded_instance_config {
-    enable_secure_boot = true
-  }
-
-  # Use Debian 12 (Bookworm) for the boot disk image.
-  boot_disk {
-    initialize_params {
-      image = "debian-cloud/debian-12"
-    }
-  }
-
-  # Attach the least-privilege service account instead of the over-privileged Compute Engine default SA.
-  service_account {
-    email  = google_service_account.svc-gke-node.email
-    scopes = ["cloud-platform"]
-  }
-
-  # Expose the Cloud SQL private IP in instance metadata for convenience.
-  metadata = {
-    cloud_sql_ip = google_sql_database_instance.guacamole-mysql.private_ip_address
-  }
 }
 
 # Allow inbound SSH from Google's Identity-Aware Proxy TCP forwarding range (35.235.240.0/20).

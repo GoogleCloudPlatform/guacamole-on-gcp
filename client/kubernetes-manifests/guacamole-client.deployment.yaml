@@ -38,6 +38,126 @@ spec:
     spec:
       # Bind Pod to the Workload Identity-enabled ServiceAccount (svc-guacamole).
       serviceAccountName: svc-guacamole
+      # Ensure shared emptyDir volumes are writable by non-root UID/GID 1001.
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+      # Native sidecar container: Cloud SQL Auth Proxy v2 connecting over Private IP using Workload Identity.
+      # Defining restartPolicy: Always in initContainers starts the proxy before init-db and keeps it running.
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+        restartPolicy: Always
+        args:
+          - "--private-ip"
+          - "--structured-logs"
+          - "--port=3306"
+          - "$(CLOUD_SQL_CONNECTION_NAME)"
+        # Inject CLOUD_SQL_CONNECTION_NAME from the guacamole-client-settings ConfigMap.
+        envFrom:
+          - configMapRef:
+              name: guacamole-client-settings
+        # Wait until port 3306 is listening before starting subsequent initContainers.
+        startupProbe:
+          tcpSocket:
+            port: 3306
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          failureThreshold: 30
+        # Lightweight resource allocation for the Cloud SQL Auth Proxy sidecar.
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        # Enforce non-root execution with all Linux capabilities dropped.
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      # InitContainer 1: Extract the official Guacamole 1.6.0 MySQL schema from the container image.
+      - name: copy-schema
+        image: guacamole-client-iap
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -ce
+          - |
+            SCHEMA_FILE=$(find /opt/guacamole -path '*mysql*' -name '001-create-schema.sql' | head -n 1)
+            if [ -z "${SCHEMA_FILE}" ]; then
+              echo "ERROR: Could not locate MySQL 001-create-schema.sql under /opt/guacamole" >&2
+              exit 1
+            fi
+            cp "${SCHEMA_FILE}" /schema/001-create-schema.sql
+        volumeMounts:
+          - name: db-schema
+            mountPath: /schema
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      # InitContainer 2: Apply the MySQL schema (if not already present) and idempotent admin user SQL.
+      - name: init-db
+        image: mysql:8.0
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -ce
+          - |
+            export MYSQL_PWD="${MYSQL_PASSWORD}"
+            echo "Waiting for Cloud SQL MySQL at ${MYSQL_HOSTNAME}:${MYSQL_PORT}..."
+            until mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -e "SELECT 1" "${MYSQL_DATABASE}" >/dev/null 2>&1; do
+              sleep 2
+            done
+            TABLE_COUNT=$(mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -N -s "${MYSQL_DATABASE}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${MYSQL_DATABASE}' AND table_name = 'guacamole_entity';")
+            if [ "${TABLE_COUNT}" -eq 0 ]; then
+              echo "Applying Guacamole 1.6.0 MySQL schema from container..."
+              mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /schema/001-create-schema.sql
+            else
+              echo "Guacamole schema already initialized (guacamole_entity exists)."
+            fi
+            echo "Ensuring Guacamole admin user permissions are configured..."
+            mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /init-sql/insert-admin-user.sql
+            echo "Database initialization complete."
+        envFrom:
+          - configMapRef:
+              name: guacamole-client-settings
+          - secretRef:
+              name: db-user-pass
+        volumeMounts:
+          - name: db-schema
+            mountPath: /schema
+            readOnly: true
+          - name: db-init-sql
+            mountPath: /init-sql
+            readOnly: true
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
       containers:
       # Primary container: Apache Guacamole 1.6.0 web client with IAP and MySQL extensions.
       - name: guacamole-client
@@ -95,30 +215,11 @@ spec:
           capabilities:
             drop:
               - ALL
-      # Sidecar container: Cloud SQL Auth Proxy v2 connecting over Private IP using Workload Identity.
-      - name: cloud-sql-proxy
-        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
-        args:
-          - "--private-ip"
-          - "--structured-logs"
-          - "--port=3306"
-          - "$(CLOUD_SQL_CONNECTION_NAME)"
-        # Inject CLOUD_SQL_CONNECTION_NAME from the guacamole-client-settings ConfigMap.
-        envFrom:
-          - configMapRef:
-              name: guacamole-client-settings
-        # Lightweight resource allocation for the Cloud SQL Auth Proxy sidecar.
-        resources:
-          limits:
-            cpu: 250m
-            memory: 256Mi
-          requests:
-            cpu: 250m
-            memory: 256Mi
-        # Enforce non-root execution with all Linux capabilities dropped.
-        securityContext:
-          runAsNonRoot: true
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
+      volumes:
+      # Ephemeral volume shared between copy-schema and init-db initContainers.
+      - name: db-schema
+        emptyDir: {}
+      # Secret volume providing insert-admin-user.sql to init-db.
+      - name: db-init-sql
+        secret:
+          secretName: guacamole-db-init

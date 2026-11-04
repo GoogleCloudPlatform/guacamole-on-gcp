@@ -20,8 +20,9 @@ flowchart TB
             subgraph GKE["GKE Autopilot Private Cluster (guacamole-gke)"]
                 K8sAPI["Kubernetes API Server<br/>(Service NEG Annotation)"]
                 subgraph PodClient["Pod: guacamole-client (K8s SA: svc-guacamole)"]
+                    InitDB["InitContainers: copy-schema + init-db (mysql:8.0)<br/>(Auto-applies 001-create-schema.sql & insert-admin-user.sql)"]
                     GuacClient["Container: guacamole-client-iap (Guacamole 1.6.0)<br/>(guacamole-auth-googleiap + guacamole-auth-jdbc-mysql)"]
-                    SQLProxy["Sidecar: cloud-sql-proxy:2.14.1<br/>(127.0.0.1:3306 via Workload Identity)"]
+                    SQLProxy["Native Sidecar: cloud-sql-proxy:2.14.1<br/>(127.0.0.1:3306 via Workload Identity)"]
                 end
                 subgraph PodServer["Pod: guacamole-server"]
                     Guacd["Container: guacamole/guacd:1.6.0<br/>(Port 4822)"]
@@ -29,7 +30,7 @@ flowchart TB
             end
 
             CloudSQL[("Cloud SQL for MySQL 8.0<br/>(Database: guacamole, Private IP)")]
-            MgmtVM["GCE VM: db-mgmt-vm<br/>(Schema Init & SSH Test Target)"]
+            TargetVMs["Target Compute Engine VMs<br/>(SSH / RDP Endpoints in VPC)"]
         end
     end
 
@@ -37,10 +38,11 @@ flowchart TB
     GLB -->|"x-goog-iap-jwt-assertion<br/>(Container-Native NEG)"| GuacClient
     GuacClient -.->|"1. First login only: Read NEG name"| K8sAPI
     GuacClient -.->|"2. First login only: Resolve BackendService ID"| ComputeAPI
+    InitDB -.->|"Pod startup: Bootstrap schema & admin"| SQLProxy
     GuacClient -->|"JDBC (127.0.0.1:3306)"| SQLProxy
     SQLProxy -->|"mTLS + IAM (roles/cloudsql.client)"| CloudSQL
     GuacClient -->|"Guacamole Protocol (4822)"| Guacd
-    Guacd -->|"SSH (22) / RDP (3389)"| MgmtVM
+    Guacd -->|"SSH (22) / RDP (3389)"| TargetVMs
 ```
 
 ### How Authentication & Database Connectivity Work
@@ -48,9 +50,10 @@ flowchart TB
    - When an authorized user accesses Guacamole through the external Load Balancer, IAP authenticates their Google identity and attaches a signed `ES256` JWT in the `x-goog-iap-jwt-assertion` HTTP header.
    - On the first authentication request, the custom [`guacamole-auth-googleiap`](client/README.md) extension reads the `cloud.google.com/neg-status` annotation on `guacamole-client-service` via the in-cluster Kubernetes API, resolves the numeric Load Balancer `BackendService` ID via the Google Cloud Compute Engine API (`compute.backendServices.get`), and caches that ID in memory in a thread-safe singleton.
    - Using Google's public JWK set (`https://www.gstatic.com/iap/verify/public_key-jwk`), the extension verifies the JWT's `ES256` cryptographic signature, audience (`/projects/<PROJECT_NUMBER>/global/backendServices/<BACKEND_SERVICE_ID>`), issuer (`https://cloud.google.com/iap`), and timestamps (with 30-second clock-skew tolerance), and normalizes the verified email address to lowercase.
-2. **Connection Authorization (`guacamole-auth-jdbc-mysql` + Cloud SQL Auth Proxy)**:
-   - Guacamole's MySQL extension trusts the email identity verified by the IAP extension and queries the `guacamole` database on **Cloud SQL for MySQL 8.0** to load that user's authorized SSH/RDP connections and system permissions.
-   - Database traffic flows from `guacamole-client` (`127.0.0.1:3306`) through a **Cloud SQL Auth Proxy v2** (`gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1`) sidecar container that authenticates via **GKE Workload Identity** (`roles/cloudsql.client`) over Private IP.
+2. **Automatic Database Initialization & Connection Authorization (`guacamole-auth-jdbc-mysql` + Cloud SQL Auth Proxy)**:
+   - On Pod startup, the **Cloud SQL Auth Proxy v2** (`gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1`) native sidecar starts first and authenticates to **Cloud SQL for MySQL 8.0** over Private IP via **GKE Workload Identity** (`roles/cloudsql.client`).
+   - Next, the `copy-schema` and `init-db` `initContainers` extract `/opt/guacamole/extensions/guacamole-auth-jdbc/mysql/schema/001-create-schema.sql` directly from the `guacamole-client-iap` container image, apply the schema if `guacamole_entity` does not yet exist, and idempotently execute `insert-admin-user.sql` to grant the deploying Google identity `ADMINISTER` and `AUDIT` permissions.
+   - Once initialized, Guacamole's MySQL extension trusts the email identity verified by the IAP extension and queries `127.0.0.1:3306` to load that user's authorized SSH/RDP connections and system permissions.
 
 ---
 
@@ -62,10 +65,8 @@ flowchart TB
 | [`client/`](client/README.md) | Custom `guacamole-client-iap` Docker image (`guacamole/guacamole:1.6.0`), the Java 21 `guacamole-auth-googleiap` Maven extension, and Kubernetes manifests for the client Pod, Service, Ingress, ManagedCertificate, and BackendConfig. |
 | [`server/`](server/README.md) | Kubernetes Deployment and Service manifests for `guacamole-server` (`guacamole/guacd:1.6.0`). |
 | [`bin/read-tf-output.sh`](bin/read-tf-output.sh) | Sourced helper script that exports Terraform outputs (`PROJECT_ID`, `GKE_CLUSTER`, `ARTIFACT_REGISTRY_REPO`, `GUACAMOLE_URL`, etc.) as shell environment variables. |
-| [`create-schema.sql`](create-schema.sql) | Apache Guacamole 1.6.0 MySQL schema (`utf8mb4`, including the `AUDIT` system permission). |
-| [`kustomization.yaml`](kustomization.yaml) | Root Kustomize manifest assembling the `guacamole` Namespace, `svc-guacamole` ServiceAccount, ConfigMap, Secret, and client/server workloads. |
+| [`kustomization.yaml`](kustomization.yaml) | Root Kustomize manifest assembling the `guacamole` Namespace, `svc-guacamole` ServiceAccount, ConfigMap, Secrets (`db-user-pass` and `guacamole-db-init`), and client/server workloads. |
 | [`skaffold.yaml`](skaffold.yaml) | Skaffold `v4beta5` pipeline for building `guacamole-client-iap` (`linux/amd64`) locally or via Google Cloud Build (`-p cloudbuild`) and deploying via Kustomize. |
-| [`docs/design/repository-refresh.md`](docs/design/repository-refresh.md) | Architectural design document detailing the repository refresh and modernization. |
 
 ---
 
@@ -98,25 +99,8 @@ From the repository root, source [`bin/read-tf-output.sh`](bin/read-tf-output.sh
 source bin/read-tf-output.sh
 ```
 
-Note the **Database Root Password** printed by the script; you will enter it in the next step when initializing the MySQL schema.
-
-### Step 3: Initialize the Cloud SQL MySQL Schema & Admin User
-Copy [`create-schema.sql`](create-schema.sql) and the Terraform-rendered `insert-admin-user.sql` script to `db-mgmt-vm` over IAP TCP tunneling and load them into the `guacamole` database:
-
-```bash
-gcloud compute scp --tunnel-through-iap --project="${PROJECT_ID}" --zone="${ZONE}" \
-  create-schema.sql insert-admin-user.sql "${DB_MGMT_VM}:~/"
-
-gcloud compute ssh --tunnel-through-iap --project="${PROJECT_ID}" --zone="${ZONE}" "${DB_MGMT_VM}" --command="
-  sudo apt-get update && sudo apt-get install -y default-mysql-client &&
-  mysql -h ${CLOUD_SQL_IP} -u root -p guacamole < ~/create-schema.sql &&
-  mysql -h ${CLOUD_SQL_IP} -u root -p guacamole < ~/insert-admin-user.sql &&
-  mysql -h ${CLOUD_SQL_IP} -u root -p -e \"GRANT SELECT,INSERT,UPDATE,DELETE ON guacamole.* TO '$(terraform -chdir=tf-infra output -raw db_username)'@'%'; FLUSH PRIVILEGES;\"
-"
-```
-
-### Step 4: Connect to the GKE Autopilot Cluster & Deploy with Skaffold
-Fetch cluster credentials and deploy Guacamole using Skaffold (using `-p cloudbuild` to build the image in Google Cloud Build, or omit `-p cloudbuild` to build with a local Docker daemon):
+### Step 3: Connect to the GKE Autopilot Cluster & Deploy with Skaffold
+Fetch cluster credentials and deploy Guacamole using Skaffold (using `-p cloudbuild` to build the image in Google Cloud Build, or omit `-p cloudbuild` to build with a local Docker daemon). The `guacamole-client` Pod's `initContainers` will automatically initialize the Cloud SQL MySQL schema and admin user on first startup:
 
 ```bash
 gcloud container clusters get-credentials "${GKE_CLUSTER}" \
@@ -126,7 +110,7 @@ gcloud container clusters get-credentials "${GKE_CLUSTER}" \
 skaffold run -p cloudbuild --default-repo="${ARTIFACT_REGISTRY_REPO}"
 ```
 
-### Step 5: Access the Guacamole Web UI
+### Step 4: Access the Guacamole Web UI
 Wait 10–15 minutes for the GKE Ingress controller to provision the Global External Application Load Balancer and for the Google-managed SSL certificate (`guacamole-client-cert`) to reach `Active` status:
 
 ```bash

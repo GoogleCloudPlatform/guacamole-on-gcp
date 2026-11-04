@@ -24,11 +24,15 @@ configMapGenerator:
   name: guacamole-client-settings
   namespace: guacamole
 
-# Generate the db-user-pass Secret containing Cloud SQL MySQL credentials.
+# Generate the db-user-pass Secret (MySQL credentials) and guacamole-db-init Secret (admin bootstrap SQL).
 secretGenerator:
 - envs:
   - ./client/db-secrets.properties
   name: db-user-pass
+  namespace: guacamole
+- files:
+  - ./insert-admin-user.sql
+  name: guacamole-db-init
   namespace: guacamole
 
 # Apply the Namespace, Workload Identity ServiceAccount, and RBAC resources first.

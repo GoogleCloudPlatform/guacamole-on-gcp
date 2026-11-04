@@ -23,15 +23,11 @@ export CLOUD_SQL_IP="$(terraform -chdir=tf-infra output -raw db_address)"
 export CLOUD_SQL_INSTANCE="$(terraform -chdir=tf-infra output -raw cloud_sql_instance_name)"
 export CLOUD_SQL_CONNECTION_NAME="$(terraform -chdir=tf-infra output -raw cloud_sql_connection_name)"
 
-# Export project, location, GKE cluster, VM, subnet, Artifact Registry, and external URL outputs.
+# Export project, location, GKE cluster, subnet, Artifact Registry, and external URL outputs.
 export ARTIFACT_REGISTRY_REPO="$(terraform -chdir=tf-infra output -raw artifact_registry_repo)"
 export ZONE="$(terraform -chdir=tf-infra output -raw cloud_zone)"
 export REGION="$(terraform -chdir=tf-infra output -raw cloud_region)"
-export DB_MGMT_VM="$(terraform -chdir=tf-infra output -raw db_mgmt_vm)"
 export PROJECT_ID="$(terraform -chdir=tf-infra output -raw project_id)"
 export GKE_CLUSTER="$(terraform -chdir=tf-infra output -raw gke_cluster_name)"
 export GUACAMOLE_URL="https://$(terraform -chdir=tf-infra output -raw external_url)/guacamole"
 export SUBNET="$(terraform -chdir=tf-infra output -raw subnet)"
-
-# Display the generated MySQL root password for initial schema loading from db-mgmt-vm.
-echo "Database Root Password: $(terraform -chdir=tf-infra output -raw db_root_password)"

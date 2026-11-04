@@ -56,18 +56,10 @@ resource "google_sql_database" "guacamole" {
   collation = "utf8mb4_general_ci"
 }
 
-# Application MySQL user referenced by the guacamole-client JDBC extension.
+# Application MySQL user referenced by the guacamole-client JDBC extension and init-db container.
 resource "google_sql_user" "guac-db-user" {
   name     = var.db_username
   instance = google_sql_database_instance.guacamole-mysql.name
   host     = "%"
   password = random_password.db_password.result
-}
-
-# Administrative root MySQL user used during initial schema creation from db-mgmt-vm.
-resource "google_sql_user" "guac-db-root" {
-  name     = "root"
-  instance = google_sql_database_instance.guacamole-mysql.name
-  host     = "%"
-  password = random_password.db_root_password.result
 }

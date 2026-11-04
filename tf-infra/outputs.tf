@@ -50,26 +50,13 @@ output "db_password" {
   sensitive   = true
 }
 
-# Root MySQL password used for initial schema creation (marked sensitive).
-output "db_root_password" {
-  value       = google_sql_user.guac-db-root.password
-  description = "Guacamole DB Root Password"
-  sensitive   = true
-}
-
 # External hostname (sslip.io or custom domain) used to access Guacamole over HTTPS.
 output "external_url" {
   value       = local.remote_url
   description = "URL used to access Guacamole"
 }
 
-# Name of the internal GCE VM used for database management and SSH testing.
-output "db_mgmt_vm" {
-  value       = google_compute_instance.db-management.name
-  description = "Database Management VM Name"
-}
-
-# Google Cloud zone where zonal resources (such as db-mgmt-vm) are deployed.
+# Google Cloud zone where zonal resources are deployed.
 output "cloud_zone" {
   value       = var.zone
   description = "Google Cloud Zone that resources have been deployed into"
