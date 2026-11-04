@@ -37,8 +37,8 @@ spec:
       labels:
         app: guacamole-server
     spec:
-      # Match the 2-hour IAP Load Balancer WebSocket timeout so draining Pods can finish active sessions.
-      terminationGracePeriodSeconds: 7200
+      # Use the maximum 600s (10-minute) termination grace period supported by GKE Autopilot for session draining.
+      terminationGracePeriodSeconds: 600
       containers:
       # Native guacd 1.6.0 daemon translating Guacamole protocol traffic into SSH/RDP/VNC.
       - name: guacamole-server
