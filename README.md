@@ -94,6 +94,8 @@ terraform -chdir=terraform init
 terraform -chdir=terraform apply -var="project_id=YOUR_PROJECT_ID"
 ```
 
+> **Note:** Terraform uses your **Application Default Credentials (ADC)** (`gcloud auth application-default login`) to authenticate to Google Cloud and automatically detect your email address for IAP access and the initial Guacamole admin user. If you have not run `gcloud auth application-default login` (or want to grant admin access to a different identity), pass `-var="admin_email=you@example.com"` to `terraform apply`.
+
 ### Step 2: Export Environment Variables from Terraform Outputs
 From the repository root, source [`bin/read-tf-output.sh`](bin/read-tf-output.sh):
 
