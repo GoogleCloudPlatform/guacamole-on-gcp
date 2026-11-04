@@ -38,14 +38,22 @@ resource "local_file" "guacamole-client-image-patch" {
   filename = "${path.module}/../client/kubernetes-manifests/guacamole-client.image-patch.yaml"
 }
 
+# Render the SecretProviderClass manifest mapping Secret Manager secrets to /secrets via the GKE CSI add-on.
+resource "local_file" "guacamole-client-secretproviderclass" {
+  content = templatefile("${path.module}/templates/guacamole-client.secretproviderclass.yaml.tmpl", {
+    db_init_sql_secret_id    = google_secret_manager_secret.db_init_sql.secret_id
+    mysql_password_secret_id = google_secret_manager_secret.db_password.secret_id
+    project_id               = var.project_id
+  })
+  filename = "${path.module}/../client/kubernetes-manifests/guacamole-client.secretproviderclass.yaml"
+}
+
 # Render non-sensitive client settings consumed by Kustomize to generate the guacamole-client-settings ConfigMap.
 # Double-escaping \\. ensures Kustomize's dotenv parser preserves \. in the final ConfigMap regex.
 resource "local_file" "client-settings-properties" {
   content = templatefile("${path.module}/templates/client-settings.properties.tmpl", {
     cloud_sql_connection_name = google_sql_database_instance.guacamole-mysql.connection_name
-    db_init_sql_secret_id     = google_secret_manager_secret.db_init_sql.secret_id
     external_ip               = replace(google_compute_global_address.guacamole-external.address, ".", "\\\\.")
-    mysql_password_secret_id  = google_secret_manager_secret.db_password.secret_id
     mysql_user                = google_sql_user.guac-db-user.name
     project_id                = var.project_id
     project_number            = data.google_project.project.number

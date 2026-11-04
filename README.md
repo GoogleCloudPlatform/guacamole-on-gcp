@@ -21,7 +21,7 @@ flowchart TB
             subgraph GKE["GKE Autopilot Private Cluster (guacamole-gke)"]
                 K8sAPI["Kubernetes API Server<br/>(Service NEG Annotation)"]
                 subgraph PodClient["Pod: guacamole-client (K8s SA: svc-guacamole)"]
-                    InitDB["InitContainers: copy-schema + init-db (mysql:8.0)<br/>(Fetches secrets via Workload Identity & bootstraps schema)"]
+                    InitDB["InitContainers: copy-schema + init-db (mysql:8.0)<br/>(Mounts secrets via GKE Secret Manager CSI & bootstraps schema)"]
                     GuacClient["Container: guacamole-client-iap (Guacamole 1.6.0)<br/>(guacamole-auth-googleiap + guacamole-auth-jdbc-mysql)"]
                     SQLProxy["Native Sidecar: cloud-sql-proxy:2.14.1<br/>(127.0.0.1:3306 via Workload Identity)"]
                 end
@@ -52,10 +52,11 @@ flowchart TB
    - When an authorized user accesses Guacamole through the external Load Balancer, IAP authenticates their Google identity and attaches a signed `ES256` JWT in the `x-goog-iap-jwt-assertion` HTTP header.
    - On the first authentication request, the custom [`guacamole-auth-googleiap`](client/README.md) extension reads the `cloud.google.com/neg-status` annotation on `guacamole-client-service` via the in-cluster Kubernetes API, resolves the numeric Load Balancer `BackendService` ID via the Google Cloud Compute Engine API (`compute.backendServices.get`), and caches that ID in memory in a thread-safe singleton.
    - Using Google's public JWK set (`https://www.gstatic.com/iap/verify/public_key-jwk`), the extension verifies the JWT's `ES256` cryptographic signature, audience (`/projects/<PROJECT_NUMBER>/global/backendServices/<BACKEND_SERVICE_ID>`), issuer (`https://cloud.google.com/iap`), and timestamps (with 30-second clock-skew tolerance), and normalizes the verified email address to lowercase.
-2. **Automatic Database Initialization & Secret Management (`guacamole-auth-jdbc-mysql` + Google Secret Manager + Cloud SQL Auth Proxy)**:
+2. **Automatic Database Initialization & Secret Management (`guacamole-auth-jdbc-mysql` + Google Secret Manager CSI + Cloud SQL Auth Proxy)**:
    - Sensitive values—the Cloud SQL password (`guacamole-db-password`) and the admin bootstrap SQL script (`guacamole-db-init-sql`)—are stored directly in **Google Secret Manager** by Terraform rather than written to local files or Kubernetes `Secret` manifests.
-   - On Pod startup, the **Cloud SQL Auth Proxy v2** (`gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1`) native sidecar starts first and authenticates to **Cloud SQL for MySQL 8.0** over Private IP via **GKE Workload Identity** (`roles/cloudsql.client`).
-   - Next, the `copy-schema` and `init-db` `initContainers` extract `/opt/guacamole/extensions/guacamole-auth-jdbc/mysql/schema/001-create-schema.sql` from the `guacamole-client-iap` container image, retrieve `guacamole-db-password` and `guacamole-db-init-sql` from **Google Secret Manager** via Workload Identity (`roles/secretmanager.secretAccessor`) into a RAM-backed `emptyDir` (`medium: Memory`), apply the schema if `guacamole_entity` does not yet exist, and idempotently execute `insert-admin-user.sql` to grant the deploying Google identity `ADMINISTER` and `AUDIT` permissions.
+   - On Pod startup, the **GKE Secret Manager CSI add-on** (`secrets-store-gke.csi.k8s.io`) mounts `guacamole-db-password` and `guacamole-db-init-sql` into `/secrets` in memory using the `guacamole-secrets` `SecretProviderClass` and the Pod's **GKE Workload Identity** (`roles/secretmanager.secretAccessor`).
+   - Simultaneously, the **Cloud SQL Auth Proxy v2** (`gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1`) native sidecar starts first and authenticates to **Cloud SQL for MySQL 8.0** over Private IP via **GKE Workload Identity** (`roles/cloudsql.client`).
+   - Next, the `copy-schema` and `init-db` `initContainers` extract `/opt/guacamole/extensions/guacamole-auth-jdbc/mysql/schema/001-create-schema.sql` from the `guacamole-client-iap` container image, apply the schema if `guacamole_entity` does not yet exist, and idempotently execute `/secrets/insert-admin-user.sql` to grant the deploying Google identity `ADMINISTER` and `AUDIT` permissions.
    - Once initialized, Guacamole's MySQL extension trusts the email identity verified by the IAP extension and queries `127.0.0.1:3306` to load that user's authorized SSH/RDP/VNC connections and system permissions.
 
 ---

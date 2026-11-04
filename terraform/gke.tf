@@ -33,6 +33,11 @@ resource "google_container_cluster" "gke" {
   enable_autopilot    = true
   deletion_protection = var.deletion_protection
 
+  # Enable the managed GKE Secret Manager CSI add-on (secrets-store-gke.csi.k8s.io).
+  secret_manager_config {
+    enabled = true
+  }
+
   # Configure Autopilot node auto-provisioning to use the dedicated least-privilege svc-gke-node account.
   cluster_autoscaling {
     auto_provisioning_defaults {

@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Root Kustomization assembling Namespace, Workload Identity ServiceAccount, ConfigMap, and workloads.
+# Root Kustomization assembling Namespace, Workload Identity ServiceAccount, SecretProviderClass, ConfigMap, and workloads.
 # Sensitive values (MySQL password and admin bootstrap SQL) are stored in Google Secret Manager
-# and fetched at Pod startup via Workload Identity, so no Kubernetes Secrets are generated here.
+# and mounted at Pod startup via the GKE Secret Manager CSI add-on, so no Kubernetes Secrets are generated here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -30,10 +30,11 @@ configMapGenerator:
 patches:
 - path: client/kubernetes-manifests/guacamole-client.image-patch.yaml
 
-# Apply the Namespace, Workload Identity ServiceAccount, and RBAC resources first.
+# Apply the Namespace, Workload Identity ServiceAccount, SecretProviderClass, and RBAC resources first.
 resources:
 - client/kubernetes-manifests/guacamole.namespace.yaml
 - client/kubernetes-manifests/guacamole-client.serviceaccount.yaml
+- client/kubernetes-manifests/guacamole-client.secretproviderclass.yaml
 - client/kubernetes-manifests/guacamole-client.role.yaml
 - client/kubernetes-manifests/guacamole-client.rolebinding.yaml
 # Apply the Guacamole client Deployment, Service, BackendConfig, ManagedCertificate, and Ingress.

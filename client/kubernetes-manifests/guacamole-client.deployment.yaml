@@ -83,8 +83,7 @@ spec:
           capabilities:
             drop:
               - ALL
-      # InitContainer 1: Extract the official Guacamole 1.6.0 MySQL schema from the container image
-      # and retrieve the MySQL password and admin bootstrap SQL from Google Secret Manager via Workload Identity.
+      # InitContainer 1: Extract the official Guacamole 1.6.0 MySQL schema from the container image.
       - name: copy-schema
         image: guacamole-client-iap
         imagePullPolicy: IfNotPresent
@@ -98,51 +97,9 @@ spec:
               exit 1
             fi
             cp "${SCHEMA_FILE}" /schema/001-create-schema.sql
-
-            echo "Acquiring Workload Identity access token from GKE metadata server..."
-            TOKEN=""
-            for attempt in $(seq 1 15); do
-              TOKEN=$(curl -sf -H "Metadata-Flavor: Google" \
-                "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
-                | tr -d '\n\r' \
-                | sed -n 's/.*"access_token":[[:space:]]*"\([^"]*\)".*/\1/p') || true
-              if [ -n "${TOKEN}" ]; then
-                break
-              fi
-              echo "  Metadata server not ready yet (attempt ${attempt}/15); retrying in 2s..."
-              sleep 2
-            done
-            if [ -z "${TOKEN}" ]; then
-              echo "ERROR: Failed to obtain Workload Identity token from GKE metadata server." >&2
-              exit 1
-            fi
-
-            fetch_secret() {
-              SECRET_ID="$1"
-              OUT_FILE="$2"
-              echo "Fetching secret '${SECRET_ID}' from Google Secret Manager..."
-              B64_DATA=$(curl -sf -H "Authorization: Bearer ${TOKEN}" \
-                "https://secretmanager.googleapis.com/v1/projects/${GOOGLE_PROJECT_ID}/secrets/${SECRET_ID}/versions/latest:access" \
-                | tr -d '\n\r' \
-                | sed -n 's/.*"data":[[:space:]]*"\([^"]*\)".*/\1/p')
-              if [ -z "${B64_DATA}" ]; then
-                echo "ERROR: Failed to retrieve secret '${SECRET_ID}' from Google Secret Manager." >&2
-                exit 1
-              fi
-              printf '%s' "${B64_DATA}" | tr '_-' '/+' | base64 -d > "${OUT_FILE}"
-              chmod 0400 "${OUT_FILE}"
-            }
-
-            fetch_secret "${MYSQL_PASSWORD_SECRET_ID}" /secrets/mysql-password
-            fetch_secret "${DB_INIT_SQL_SECRET_ID}" /secrets/insert-admin-user.sql
-        envFrom:
-          - configMapRef:
-              name: guacamole-client-settings
         volumeMounts:
           - name: db-schema
             mountPath: /schema
-          - name: runtime-secrets
-            mountPath: /secrets
         resources:
           limits:
             cpu: 250m
@@ -273,7 +230,10 @@ spec:
       # Ephemeral volume shared between copy-schema and init-db initContainers.
       - name: db-schema
         emptyDir: {}
-      # RAM-backed tmpfs volume storing secrets fetched from Google Secret Manager at Pod startup.
+      # Mount secrets from Google Secret Manager via the GKE Secret Manager CSI add-on.
       - name: runtime-secrets
-        emptyDir:
-          medium: Memory
+        csi:
+          driver: secrets-store-gke.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: guacamole-secrets
