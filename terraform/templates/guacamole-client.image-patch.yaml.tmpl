@@ -1,0 +1,16 @@
+# Strategic merge patch setting the Artifact Registry image URI for guacamole-client-iap
+# so `kubectl apply -k .` works independently without requiring Skaffold.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole-client
+  namespace: guacamole
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: copy-schema
+        image: ${artifact_registry_repo}/guacamole-client-iap:latest
+      containers:
+      - name: guacamole-client
+        image: ${artifact_registry_repo}/guacamole-client-iap:latest

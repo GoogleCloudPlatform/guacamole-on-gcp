@@ -88,19 +88,21 @@ variable "required_apis" {
   type        = list(string)
   description = "Google Cloud APIs required by this deployment."
   default = [
-    # Required for storing custom container images and running Cloud Build.
+    # Required for storing custom container images, Cloud Build, and Cloud Deploy.
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
+    "clouddeploy.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     # Required for VPC networking, GKE Autopilot, and Workload Identity IAM bindings.
     "compute.googleapis.com",
     "container.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
-    # Required for Identity-Aware Proxy, observability, and private Cloud SQL peering.
+    # Required for Identity-Aware Proxy, Secret Manager, observability, and private Cloud SQL peering.
     "iap.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
+    "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "serviceusage.googleapis.com",
     "sqladmin.googleapis.com",

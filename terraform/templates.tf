@@ -13,16 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Render the SQL script that grants Guacamole admin permissions to the deploying Google identity.
-# Uses local_sensitive_file (0600) and lowercases the email to match IAP extension normalization.
-resource "local_sensitive_file" "insert-admin-user" {
-  content = templatefile("${path.module}/templates/insert-admin-user.sql.tmpl", {
-    admin_email = lower(local.admin_email)
-  })
-  filename        = "${path.module}/../insert-admin-user.sql"
-  file_permission = "0600"
-}
-
 # Render the GKE ManagedCertificate manifest with the resolved external domain (sslip.io or custom).
 resource "local_file" "guacamole-client-managedcert" {
   content = templatefile("${path.module}/templates/guacamole-client.managedcert.yaml.tmpl", {
@@ -39,24 +29,26 @@ resource "local_file" "guacamole-client-serviceaccount" {
   filename = "${path.module}/../client/kubernetes-manifests/guacamole-client.serviceaccount.yaml"
 }
 
+# Render the Kustomize strategic merge patch pointing guacamole-client-iap to Artifact Registry
+# so `kubectl apply -k .` works independently without requiring Skaffold.
+resource "local_file" "guacamole-client-image-patch" {
+  content = templatefile("${path.module}/templates/guacamole-client.image-patch.yaml.tmpl", {
+    artifact_registry_repo = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.guac-repo.repository_id}"
+  })
+  filename = "${path.module}/../client/kubernetes-manifests/guacamole-client.image-patch.yaml"
+}
+
 # Render non-sensitive client settings consumed by Kustomize to generate the guacamole-client-settings ConfigMap.
 # Double-escaping \\. ensures Kustomize's dotenv parser preserves \. in the final ConfigMap regex.
 resource "local_file" "client-settings-properties" {
   content = templatefile("${path.module}/templates/client-settings.properties.tmpl", {
     cloud_sql_connection_name = google_sql_database_instance.guacamole-mysql.connection_name
+    db_init_sql_secret_id     = google_secret_manager_secret.db_init_sql.secret_id
     external_ip               = replace(google_compute_global_address.guacamole-external.address, ".", "\\\\.")
+    mysql_password_secret_id  = google_secret_manager_secret.db_password.secret_id
+    mysql_user                = google_sql_user.guac-db-user.name
     project_id                = var.project_id
     project_number            = data.google_project.project.number
   })
   filename = "${path.module}/../client/client-settings.properties"
-}
-
-# Render sensitive MySQL credentials with 0600 permissions for Kustomize's db-user-pass Secret generator.
-resource "local_sensitive_file" "db-secrets-properties" {
-  content = templatefile("${path.module}/templates/db-secrets.properties.tmpl", {
-    mysql_user     = google_sql_user.guac-db-user.name
-    mysql_password = google_sql_user.guac-db-user.password
-  })
-  filename        = "${path.module}/../client/db-secrets.properties"
-  file_permission = "0600"
 }

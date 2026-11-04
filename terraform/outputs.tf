@@ -79,8 +79,14 @@ output "subnet" {
   description = "Network subnet to attach test VMs to"
 }
 
-# Full Artifact Registry repository path used as --default-repo when running Skaffold.
+# Full Artifact Registry repository path used when building and deploying guacamole-client-iap.
 output "artifact_registry_repo" {
   value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.guac-repo.repository_id}"
-  description = "Artifact Registry Docker repository URI for Skaffold (--default-repo)"
+  description = "Artifact Registry Docker repository URI"
+}
+
+# Name of the Google Cloud Deploy delivery pipeline.
+output "clouddeploy_pipeline" {
+  value       = google_clouddeploy_delivery_pipeline.guacamole_pipeline.name
+  description = "Google Cloud Deploy delivery pipeline name"
 }

@@ -1,6 +1,7 @@
 # Generated Configuration & Rendered Manifests
 client/client-settings.properties
 client/db-secrets.properties
+client/kubernetes-manifests/guacamole-client.image-patch.yaml
 client/kubernetes-manifests/guacamole-client.managedcert.yaml
 client/kubernetes-manifests/guacamole-client.serviceaccount.yaml
 insert-admin-user.sql

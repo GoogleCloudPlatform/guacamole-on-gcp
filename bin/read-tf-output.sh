@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # Helper script meant to be sourced (`source bin/read-tf-output.sh`) to export
-# Terraform outputs as environment variables for subsequent gcloud / skaffold commands.
+# Terraform outputs as environment variables for subsequent gcloud / kubectl commands.
 # Do NOT enable `set -e` or call `exit` here so sourcing never terminates the user's shell.
 
 # Export Cloud SQL private IP, instance name, and Cloud SQL Auth Proxy connection name.
@@ -23,8 +23,9 @@ export CLOUD_SQL_IP="$(terraform -chdir=terraform output -raw db_address)"
 export CLOUD_SQL_INSTANCE="$(terraform -chdir=terraform output -raw cloud_sql_instance_name)"
 export CLOUD_SQL_CONNECTION_NAME="$(terraform -chdir=terraform output -raw cloud_sql_connection_name)"
 
-# Export project, location, GKE cluster, subnet, Artifact Registry, and external URL outputs.
+# Export project, location, GKE cluster, subnet, Artifact Registry, Cloud Deploy, and external URL outputs.
 export ARTIFACT_REGISTRY_REPO="$(terraform -chdir=terraform output -raw artifact_registry_repo)"
+export CLOUDDEPLOY_PIPELINE="$(terraform -chdir=terraform output -raw clouddeploy_pipeline)"
 export ZONE="$(terraform -chdir=terraform output -raw cloud_zone)"
 export REGION="$(terraform -chdir=terraform output -raw cloud_region)"
 export PROJECT_ID="$(terraform -chdir=terraform output -raw project_id)"

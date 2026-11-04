@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Root Kustomization assembling Namespace, Workload Identity ServiceAccount, ConfigMap, Secret, and workloads.
+# Root Kustomization assembling Namespace, Workload Identity ServiceAccount, ConfigMap, and workloads.
+# Sensitive values (MySQL password and admin bootstrap SQL) are stored in Google Secret Manager
+# and fetched at Pod startup via Workload Identity, so no Kubernetes Secrets are generated here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -24,16 +26,9 @@ configMapGenerator:
   name: guacamole-client-settings
   namespace: guacamole
 
-# Generate the db-user-pass Secret (MySQL credentials) and guacamole-db-init Secret (admin bootstrap SQL).
-secretGenerator:
-- envs:
-  - ./client/db-secrets.properties
-  name: db-user-pass
-  namespace: guacamole
-- files:
-  - ./insert-admin-user.sql
-  name: guacamole-db-init
-  namespace: guacamole
+# Apply the Terraform-rendered image patch so `kubectl apply -k .` resolves the Artifact Registry URI directly.
+patches:
+- path: client/kubernetes-manifests/guacamole-client.image-patch.yaml
 
 # Apply the Namespace, Workload Identity ServiceAccount, and RBAC resources first.
 resources:
