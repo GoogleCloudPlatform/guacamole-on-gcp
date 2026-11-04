@@ -73,7 +73,9 @@ flowchart TB
 ## Prerequisites
 
 1. A **Google Cloud project** with billing enabled.
-2. Configured OAuth Consent Screen for Identity-Aware Proxy in the Google Cloud Console (**APIs & Services -> OAuth consent screen**).
+2. **Identity-Aware Proxy (IAP) OAuth Configuration**:
+   - **Internal applications (within a Google Cloud Organization):** No OAuth Consent Screen or OAuth client configuration is required. [`guacamole-client.backendconfig.yaml`](client/kubernetes-manifests/guacamole-client.backendconfig.yaml) enables IAP with `iap.enabled: true` (omitting `oauthclientCredentials`), which automatically uses IAP's Google-managed OAuth client for users within your organization.
+   - **External applications (outside a Google Cloud Organization or allowing external users):** If your project is not part of a Google Cloud Organization or you need to grant access to external users, configure an External OAuth Consent Screen and custom OAuth client credentials by following the Google Cloud documentation on [Using custom OAuth clients with IAP](https://cloud.google.com/iap/docs/auth-howto) and [Enabling IAP for GKE (`BackendConfig` with `oauthclientCredentials`)](https://cloud.google.com/iap/docs/enabling-kubernetes-howto).
 3. Local CLI tools installed:
    - `gcloud` (Google Cloud SDK, authenticated via `gcloud auth login` and `gcloud auth application-default login`)
    - `terraform` (`>= 1.5.0`)
