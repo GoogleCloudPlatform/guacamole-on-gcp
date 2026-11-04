@@ -36,8 +36,30 @@ locals {
     "roles/artifactregistry.reader",
   ]
 
-  # Use explicit var.admin_email when provided; otherwise fall back to the OpenID email from ADC.
-  admin_email = trimspace(var.admin_email) != "" ? trimspace(var.admin_email) : trimspace(data.google_client_openid_userinfo.me.email)
+  # Read the active gcloud configuration name from ~/.config/gcloud/active_config (defaults to "default").
+  gcloud_config_dir    = pathexpand("~/.config/gcloud")
+  gcloud_active_config = try(trimspace(file("${local.gcloud_config_dir}/active_config")), "default")
+
+  # Extract the active account email from ~/.config/gcloud/configurations/config_<name> if present.
+  gcloud_home_email = try(
+    trimspace(regex("(?m)^\\s*account\\s*=\\s*(\\S+)", file("${local.gcloud_config_dir}/configurations/config_${local.gcloud_active_config}"))[0]),
+    ""
+  )
+
+  # Resolve the admin email in priority order:
+  # 1. Explicit var.admin_email
+  # 2. OpenID userinfo from Application Default Credentials (data.google_client_openid_userinfo.me.email)
+  # 3. Active gcloud CLI config in ~/.config/gcloud
+  # 4. Active gcloud / Cloud Shell config resolved via data.external.gcloud_account
+  admin_email = try(
+    coalesce(
+      trimspace(var.admin_email),
+      trimspace(data.google_client_openid_userinfo.me.email),
+      local.gcloud_home_email,
+      trimspace(data.external.gcloud_account.result.email),
+    ),
+    ""
+  )
 
   # Format the IAM principal prefix appropriately for human Google accounts vs GCP service accounts.
   admin_iam_member = endswith(local.admin_email, ".gserviceaccount.com") ? "serviceAccount:${local.admin_email}" : "user:${local.admin_email}"
@@ -75,6 +97,35 @@ data "google_compute_default_service_account" "default" {
 
 # Retrieve the authenticated operator's email address to bootstrap the initial Guacamole admin user.
 data "google_client_openid_userinfo" "me" {}
+
+# Fallback lookup for the active gcloud / Cloud Shell account when ADC lacks the OpenID userinfo.email scope.
+data "external" "gcloud_account" {
+  program = [
+    "sh",
+    "-c",
+    <<-EOT
+      read_cfg() {
+        dir="$1"
+        [ -n "$dir" ] && [ -d "$dir" ] || return 0
+        active="$(cat "$dir/active_config" 2>/dev/null || echo default)"
+        sed -n 's/^[[:space:]]*account[[:space:]]*=[[:space:]]*\([^[:space:]]*\).*/\1/p' "$dir/configurations/config_$active" 2>/dev/null | head -n 1
+      }
+      email="$(read_cfg "$CLOUDSDK_CONFIG")"
+      if [ -z "$email" ]; then
+        email="$(read_cfg "$HOME/.config/gcloud")"
+      fi
+      if [ -z "$email" ] && [ -n "$GCE_METADATA_HOST" ]; then
+        meta_email="$(curl -sf -m 2 -H "Metadata-Flavor: Google" "http://$GCE_METADATA_HOST/computeMetadata/v1/instance/service-accounts/default/email" 2>/dev/null || true)"
+        case "$meta_email" in
+          *.gserviceaccount.com) ;;
+          *) email="$meta_email" ;;
+        esac
+      fi
+      email="$(printf '%s' "$email" | tr -d '\r\n"\\')"
+      printf '{"email":"%s"}\n' "$email"
+    EOT
+  ]
+}
 
 # Retrieve project metadata including the numeric project number required for IAP JWT audience validation.
 data "google_project" "project" {

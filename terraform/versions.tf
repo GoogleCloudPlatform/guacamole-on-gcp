@@ -35,5 +35,11 @@ terraform {
       source  = "hashicorp/local"
       version = ">= 2.5.0"
     }
+
+    # Reads active gcloud CLI / Cloud Shell account config when ADC lacks OpenID email scope.
+    external = {
+      source  = "hashicorp/external"
+      version = ">= 2.3.0"
+    }
   }
 }
