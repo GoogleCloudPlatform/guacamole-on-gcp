@@ -50,16 +50,21 @@ spec:
         args:
           - "--private-ip"
           - "--structured-logs"
+          - "--health-check"
+          - "--http-address=0.0.0.0"
+          - "--http-port=9090"
           - "--port=3306"
           - "$(CLOUD_SQL_CONNECTION_NAME)"
         # Inject CLOUD_SQL_CONNECTION_NAME from the guacamole-client-settings ConfigMap.
         envFrom:
           - configMapRef:
               name: guacamole-client-settings
-        # Wait until port 3306 is listening before starting subsequent initContainers.
+        # Wait until the Cloud SQL Auth Proxy HTTP healthcheck reports /startup ready
+        # before starting subsequent initContainers (while keeping port 3306 bound to 127.0.0.1).
         startupProbe:
-          tcpSocket:
-            port: 3306
+          httpGet:
+            path: /startup
+            port: 9090
           initialDelaySeconds: 1
           periodSeconds: 2
           failureThreshold: 30
