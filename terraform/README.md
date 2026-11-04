@@ -8,7 +8,7 @@ This directory contains the single-stage Terraform configuration that provisions
 
 | File | Purpose |
 | :--- | :--- |
-| [`versions.tf`](versions.tf) | Declares `required_version = ">= 1.5.0"` and pins the `google` (`>= 5.6.0, < 7.0.0`), `random` (`>= 3.6.0`), `local` (`>= 2.5.0`), and `external` (`>= 2.3.0`) providers. |
+| [`versions.tf`](versions.tf) | Declares `required_version = ">= 1.5.0"` and pins the `google` (`>= 6.10.0, < 7.0.0`), `random` (`>= 3.6.0`), `local` (`>= 2.5.0`), and `external` (`>= 2.3.0`) providers. |
 | [`variables.tf`](variables.tf) | Input variables for project ID, region, zone, VPC name, Cloud SQL settings, external domain (`sslip.io` by default), deletion protection, and required GCP APIs. |
 | [`main.tf`](main.tf) | Configures the `google` provider, resolves the operator's admin email (from `var.admin_email`, ADC OpenID userinfo, or active `gcloud` / Cloud Shell configuration), computes the `sslip.io` domain in pure HCL, generates random DB passwords, and enables required project APIs via `terraform-google-modules/project-factory/google//modules/project_services`. |
 | [`compute.tf`](compute.tf) | Provisions the custom VPC (`guacamole-vpc`), subnet (`10.10.0.0/24`), Cloud Router + Cloud NAT, Private Service Access IP range, IAP/guacd firewall rules, and global static IP (`guacamole-external`). |

@@ -108,11 +108,12 @@ source bin/read-tf-output.sh
 ```
 
 ### Step 3: Build the `guacamole-client-iap` Image & Deploy to GKE Autopilot
-Build and push the `guacamole-client-iap` container image using Google Cloud Build:
+Build and push the `guacamole-client-iap` container image using Google Cloud Build (with BuildKit enabled via [`client/cloudbuild.yaml`](client/cloudbuild.yaml)):
 
 ```bash
 gcloud builds submit ./client \
-  --tag "${ARTIFACT_REGISTRY_REPO}/guacamole-client-iap:latest" \
+  --config=./client/cloudbuild.yaml \
+  --substitutions="_IMAGE_URI=${ARTIFACT_REGISTRY_REPO}/guacamole-client-iap:latest" \
   --project="${PROJECT_ID}"
 ```
 

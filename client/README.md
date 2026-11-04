@@ -9,6 +9,7 @@ This directory contains the Docker build context, Kubernetes manifests, and cust
 | Path | Description |
 | :--- | :--- |
 | [`Dockerfile`](Dockerfile) | Multi-stage Docker build: compiles `guacamole-auth-googleiap` with `maven:3-eclipse-temurin-21` and copies the extension JAR and runtime dependencies into `guacamole/guacamole:1.6.0` (`/etc/guacamole`) with `guacamole:guacamole` (`UID 1001`) ownership. |
+| [`cloudbuild.yaml`](cloudbuild.yaml) | Google Cloud Build configuration building `guacamole-client-iap` with BuildKit (`DOCKER_BUILDKIT=1`). |
 | [`bin/build-googleiap.sh`](bin/build-googleiap.sh) | Build helper invoked inside the Docker builder stage (`mvn -B package`). |
 | [`extensions/guacamole-auth-googleiap/`](extensions/guacamole-auth-googleiap/pom.xml) | Maven project for the Google Cloud Identity-Aware Proxy (IAP) Guacamole 1.6.0 authentication provider. |
 | [`kubernetes-manifests/`](kubernetes-manifests/) | Kubernetes manifests for the `guacamole` Namespace, `svc-guacamole` ServiceAccount, RBAC `Role`/`RoleBinding`, `Deployment` (with Cloud SQL Auth Proxy sidecar), `Service`, `BackendConfig`, `ManagedCertificate`, and `Ingress`. |

@@ -19,9 +19,10 @@ terraform {
 
   required_providers {
     # Primary Google Cloud provider used for all GCP resources and IAM bindings.
+    # >= 6.10.0 is required for GA support of secret_manager_config on google_container_cluster.
     google = {
       source  = "hashicorp/google"
-      version = ">= 5.6.0, < 7.0.0"
+      version = ">= 6.10.0, < 7.0.0"
     }
 
     # Generates unique suffixes for Cloud SQL instances and random DB credentials.
