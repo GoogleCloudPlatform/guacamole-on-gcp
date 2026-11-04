@@ -11,7 +11,7 @@ Rather than exposing SSH (`22`) or RDP (`3389`) ports on virtual machines to the
 ```mermaid
 flowchart TB
     User["User Browser"]
-    subgraph GCP["Google Cloud Project (Provisioned by tf-infra/)"]
+    subgraph GCP["Google Cloud Project (Provisioned by terraform/)"]
         GLB["Global External Application Load Balancer<br/>(Static IP + Managed Certificate + IAP)"]
         ComputeAPI["Compute Engine API<br/>(BackendServices.get)"]
         AR["Artifact Registry<br/>(guac-repo)"]
@@ -61,7 +61,7 @@ flowchart TB
 
 | Path | Description |
 | :--- | :--- |
-| [`tf-infra/`](tf-infra/README.md) | Single-stage Terraform configuration provisioning VPC networking, GKE Autopilot, Cloud SQL for MySQL 8.0, Artifact Registry, IAM / Workload Identity bindings, and rendered configuration files. |
+| [`terraform/`](terraform/README.md) | Single-stage Terraform configuration provisioning VPC networking, GKE Autopilot, Cloud SQL for MySQL 8.0, Artifact Registry, IAM / Workload Identity bindings, and rendered configuration files. |
 | [`client/`](client/README.md) | Custom `guacamole-client-iap` Docker image (`guacamole/guacamole:1.6.0`), the Java 21 `guacamole-auth-googleiap` Maven extension, and Kubernetes manifests for the client Pod, Service, Ingress, ManagedCertificate, and BackendConfig. |
 | [`server/`](server/README.md) | Kubernetes Deployment and Service manifests for `guacamole-server` (`guacamole/guacd:1.6.0`). |
 | [`bin/read-tf-output.sh`](bin/read-tf-output.sh) | Sourced helper script that exports Terraform outputs (`PROJECT_ID`, `GKE_CLUSTER`, `ARTIFACT_REGISTRY_REPO`, `GUACAMOLE_URL`, etc.) as shell environment variables. |
@@ -85,11 +85,11 @@ flowchart TB
 ## Quickstart Deployment Guide
 
 ### Step 1: Provision Google Cloud Infrastructure (Single-Stage Terraform)
-Run Terraform inside [`tf-infra/`](tf-infra/README.md) to enable required APIs, create the VPC, GKE Autopilot cluster, Cloud SQL MySQL 8.0 instance and `guacamole` database, Artifact Registry repository, and Workload Identity IAM bindings, and render the local configuration files:
+Run Terraform inside [`terraform/`](terraform/README.md) to enable required APIs, create the VPC, GKE Autopilot cluster, Cloud SQL MySQL 8.0 instance and `guacamole` database, Artifact Registry repository, and Workload Identity IAM bindings, and render the local configuration files:
 
 ```bash
-terraform -chdir=tf-infra init
-terraform -chdir=tf-infra apply -var="project_id=YOUR_PROJECT_ID"
+terraform -chdir=terraform init
+terraform -chdir=terraform apply -var="project_id=YOUR_PROJECT_ID"
 ```
 
 ### Step 2: Export Environment Variables from Terraform Outputs
@@ -127,5 +127,5 @@ To delete the Kubernetes workloads and tear down all Google Cloud infrastructure
 
 ```bash
 skaffold delete
-terraform -chdir=tf-infra destroy -var="project_id=${PROJECT_ID}"
+terraform -chdir=terraform destroy -var="project_id=${PROJECT_ID}"
 ```

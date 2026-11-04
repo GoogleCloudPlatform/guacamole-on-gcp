@@ -19,15 +19,15 @@
 # Do NOT enable `set -e` or call `exit` here so sourcing never terminates the user's shell.
 
 # Export Cloud SQL private IP, instance name, and Cloud SQL Auth Proxy connection name.
-export CLOUD_SQL_IP="$(terraform -chdir=tf-infra output -raw db_address)"
-export CLOUD_SQL_INSTANCE="$(terraform -chdir=tf-infra output -raw cloud_sql_instance_name)"
-export CLOUD_SQL_CONNECTION_NAME="$(terraform -chdir=tf-infra output -raw cloud_sql_connection_name)"
+export CLOUD_SQL_IP="$(terraform -chdir=terraform output -raw db_address)"
+export CLOUD_SQL_INSTANCE="$(terraform -chdir=terraform output -raw cloud_sql_instance_name)"
+export CLOUD_SQL_CONNECTION_NAME="$(terraform -chdir=terraform output -raw cloud_sql_connection_name)"
 
 # Export project, location, GKE cluster, subnet, Artifact Registry, and external URL outputs.
-export ARTIFACT_REGISTRY_REPO="$(terraform -chdir=tf-infra output -raw artifact_registry_repo)"
-export ZONE="$(terraform -chdir=tf-infra output -raw cloud_zone)"
-export REGION="$(terraform -chdir=tf-infra output -raw cloud_region)"
-export PROJECT_ID="$(terraform -chdir=tf-infra output -raw project_id)"
-export GKE_CLUSTER="$(terraform -chdir=tf-infra output -raw gke_cluster_name)"
-export GUACAMOLE_URL="https://$(terraform -chdir=tf-infra output -raw external_url)/guacamole"
-export SUBNET="$(terraform -chdir=tf-infra output -raw subnet)"
+export ARTIFACT_REGISTRY_REPO="$(terraform -chdir=terraform output -raw artifact_registry_repo)"
+export ZONE="$(terraform -chdir=terraform output -raw cloud_zone)"
+export REGION="$(terraform -chdir=terraform output -raw cloud_region)"
+export PROJECT_ID="$(terraform -chdir=terraform output -raw project_id)"
+export GKE_CLUSTER="$(terraform -chdir=terraform output -raw gke_cluster_name)"
+export GUACAMOLE_URL="https://$(terraform -chdir=terraform output -raw external_url)/guacamole"
+export SUBNET="$(terraform -chdir=terraform output -raw subnet)"

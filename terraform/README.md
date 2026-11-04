@@ -1,4 +1,4 @@
-# Terraform Infrastructure (`tf-infra/`)
+# Terraform Infrastructure (`terraform/`)
 
 This directory contains the single-stage Terraform configuration that provisions all Google Cloud infrastructure, IAM / Workload Identity bindings, and rendered Kubernetes/Guacamole configuration files for `guacamole-on-gcp`.
 
