@@ -24,13 +24,13 @@ flowchart TB
                     GuacClient["Container: guacamole-client-iap (Guacamole 1.6.0)<br/>(guacamole-auth-googleiap + guacamole-auth-jdbc-mysql)"]
                     SQLProxy["Native Sidecar: cloud-sql-proxy:2.14.1<br/>(127.0.0.1:3306 via Workload Identity)"]
                 end
-                subgraph PodServer["Pod: guacamole-server"]
-                    Guacd["Container: guacamole/guacd:1.6.0<br/>(Port 4822)"]
+                subgraph PodServer["Pod(s): guacamole-server (HPA: 1–10 Replicas)"]
+                    Guacd["Container: guacamole/guacd:1.6.0<br/>(Port 4822 + preStop Session Drain)"]
                 end
             end
 
             CloudSQL[("Cloud SQL for MySQL 8.0<br/>(Database: guacamole, Private IP)")]
-            TargetVMs["Target Compute Engine VMs<br/>(SSH / RDP Endpoints in VPC)"]
+            TargetVMs["Target Compute Engine VMs<br/>(SSH / RDP / VNC Endpoints in VPC)"]
         end
     end
 
@@ -42,7 +42,7 @@ flowchart TB
     GuacClient -->|"JDBC (127.0.0.1:3306)"| SQLProxy
     SQLProxy -->|"mTLS + IAM (roles/cloudsql.client)"| CloudSQL
     GuacClient -->|"Guacamole Protocol (4822)"| Guacd
-    Guacd -->|"SSH (22) / RDP (3389)"| TargetVMs
+    Guacd -->|"SSH (22) / RDP (3389) / VNC (5901)"| TargetVMs
 ```
 
 ### How Authentication & Database Connectivity Work
@@ -63,7 +63,7 @@ flowchart TB
 | :--- | :--- |
 | [`terraform/`](terraform/README.md) | Single-stage Terraform configuration provisioning VPC networking, GKE Autopilot, Cloud SQL for MySQL 8.0, Artifact Registry, IAM / Workload Identity bindings, and rendered configuration files. |
 | [`client/`](client/README.md) | Custom `guacamole-client-iap` Docker image (`guacamole/guacamole:1.6.0`), the Java 21 `guacamole-auth-googleiap` Maven extension, and Kubernetes manifests for the client Pod, Service, Ingress, ManagedCertificate, and BackendConfig. |
-| [`server/`](server/README.md) | Kubernetes Deployment and Service manifests for `guacamole-server` (`guacamole/guacd:1.6.0`). |
+| [`server/`](server/README.md) | Kubernetes Deployment, Service, and `HorizontalPodAutoscaler` manifests for `guacamole-server` (`guacamole/guacd:1.6.0`). |
 | [`bin/read-tf-output.sh`](bin/read-tf-output.sh) | Sourced helper script that exports Terraform outputs (`PROJECT_ID`, `GKE_CLUSTER`, `ARTIFACT_REGISTRY_REPO`, `GUACAMOLE_URL`, `ADMIN_EMAIL`, etc.) as shell environment variables. |
 | [`bin/create-test-vms.sh`](bin/create-test-vms.sh) | Helper script that provisions a Windows RDP test VM and a Linux VNC test VM, resets the Windows admin password, and generates a Guacamole batch-import JSON file (`test-connections.json`). |
 | [`kustomization.yaml`](kustomization.yaml) | Root Kustomize manifest assembling the `guacamole` Namespace, `svc-guacamole` ServiceAccount, ConfigMap, Secrets (`db-user-pass` and `guacamole-db-init`), and client/server workloads. |

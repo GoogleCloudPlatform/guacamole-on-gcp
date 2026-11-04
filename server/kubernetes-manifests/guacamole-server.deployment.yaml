@@ -37,19 +37,32 @@ spec:
       labels:
         app: guacamole-server
     spec:
+      # Match the 2-hour IAP Load Balancer WebSocket timeout so draining Pods can finish active sessions.
+      terminationGracePeriodSeconds: 7200
       containers:
       # Native guacd 1.6.0 daemon translating Guacamole protocol traffic into SSH/RDP/VNC.
       - name: guacamole-server
         image: guacamole/guacd:1.6.0
         imagePullPolicy: IfNotPresent
-        # CPU and memory requests/limits sized for guacd protocol translation on GKE Autopilot.
+        # CPU and memory requests/limits sized for ~10-15 concurrent RDP/VNC sessions per Pod on GKE Autopilot.
         resources:
           limits:
-            cpu: 250m
-            memory: 512Mi
+            cpu: 1000m
+            memory: 2Gi
           requests:
-            cpu: 250m
-            memory: 512Mi
+            cpu: 1000m
+            memory: 2Gi
+        # Drain active sessions before allowing SIGTERM (which immediately kills child guacd processes).
+        lifecycle:
+          preStop:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  while [ "$(pidof guacd | wc -w)" -gt 1 ]; do
+                    sleep 5
+                  done
         # Expose the Guacamole protocol daemon on TCP port 4822 inside the cluster.
         ports:
         - containerPort: 4822

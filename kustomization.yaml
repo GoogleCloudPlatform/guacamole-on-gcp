@@ -47,6 +47,7 @@ resources:
 - client/kubernetes-manifests/guacamole-client.service.yaml
 - client/kubernetes-manifests/guacamole-client.managedcert.yaml
 - client/kubernetes-manifests/guacamole-client.ingress.yaml
-# Apply the internal guacd server Deployment and ClusterIP Service.
+# Apply the internal guacd server Deployment, ClusterIP Service, and HorizontalPodAutoscaler.
 - server/kubernetes-manifests/guacamole-server.deployment.yaml
 - server/kubernetes-manifests/guacamole-server.service.yaml
+- server/kubernetes-manifests/guacamole-server.hpa.yaml
