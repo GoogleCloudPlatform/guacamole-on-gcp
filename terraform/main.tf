@@ -51,12 +51,13 @@ locals {
   # 2. OpenID userinfo from Application Default Credentials (data.google_client_openid_userinfo.me.email)
   # 3. Active gcloud CLI config in ~/.config/gcloud
   # 4. Active gcloud / Cloud Shell config resolved via data.external.gcloud_account
+  # Each candidate is wrapped in its own try(...) so a null value on any source does not abort coalesce(...).
   admin_email = try(
     coalesce(
-      trimspace(var.admin_email),
-      trimspace(data.google_client_openid_userinfo.me.email),
-      local.gcloud_home_email,
-      trimspace(data.external.gcloud_account.result.email),
+      try(trimspace(var.admin_email), ""),
+      try(trimspace(data.google_client_openid_userinfo.me.email), ""),
+      try(trimspace(local.gcloud_home_email), ""),
+      try(trimspace(data.external.gcloud_account.result.email), ""),
     ),
     ""
   )

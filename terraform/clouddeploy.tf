@@ -41,6 +41,13 @@ resource "google_service_account_iam_member" "clouddeploy_user_admin" {
   service_account_id = google_service_account.clouddeploy_execution.name
   role               = "roles/iam.serviceAccountUser"
   member             = local.admin_iam_member
+
+  lifecycle {
+    precondition {
+      condition     = local.admin_email != ""
+      error_message = "Could not detect an email address from Application Default Credentials. Pass -var=\"admin_email=you@example.com\" or run: gcloud auth application-default login"
+    }
+  }
 }
 
 # Allow the Cloud Deploy Service Agent to act as svc-clouddeploy during automated rollout phases.
