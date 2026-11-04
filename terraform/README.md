@@ -17,7 +17,7 @@ This directory contains the single-stage Terraform configuration that provisions
 | [`artifactrepo.tf`](artifactrepo.tf) | Creates the `guac-repo` Docker repository in Artifact Registry and binds `roles/artifactregistry.reader` to `svc-gke-node` and `roles/artifactregistry.writer` to the Compute Engine default service account (for Cloud Build). |
 | [`iam.tf`](iam.tf) | Creates `svc-guacamole` and `svc-gke-node`, defines the custom `iap_jwt_verifier` role (`compute.backendServices.get`), grants `roles/cloudsql.client` to `svc-guacamole`, and binds `roles/iam.workloadIdentityUser` to `serviceAccount:<project_id>.svc.id.goog[guacamole/svc-guacamole]`. |
 | [`templates.tf`](templates.tf) | Renders `insert-admin-user.sql`, `client/client-settings.properties`, `client/db-secrets.properties`, `guacamole-client.managedcert.yaml`, and `guacamole-client.serviceaccount.yaml` from [`templates/`](templates/). |
-| [`outputs.tf`](outputs.tf) | Exports project, network, GKE, Cloud SQL (`db_address`, `cloud_sql_instance_name`, `cloud_sql_connection_name`), Artifact Registry (`artifact_registry_repo`), and URL outputs. |
+| [`outputs.tf`](outputs.tf) | Exports project, admin email (`admin_email`), network, GKE, Cloud SQL (`db_address`, `cloud_sql_instance_name`, `cloud_sql_connection_name`), Artifact Registry (`artifact_registry_repo`), and URL outputs. |
 
 ---
 

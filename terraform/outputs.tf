@@ -19,6 +19,12 @@ output "project_id" {
   description = "The Google Cloud project ID where Guacamole is deployed"
 }
 
+# Google account email granted IAP access and initial Guacamole administrator permissions.
+output "admin_email" {
+  value       = local.admin_email
+  description = "Google account email granted IAP access and initial Guacamole administrator permissions"
+}
+
 # Private VPC IPv4 address of the Cloud SQL for MySQL instance.
 output "db_address" {
   value       = google_sql_database_instance.guacamole-mysql.private_ip_address
@@ -41,13 +47,6 @@ output "cloud_sql_connection_name" {
 output "db_username" {
   value       = google_sql_user.guac-db-user.name
   description = "Guacamole DB User Name"
-}
-
-# Application MySQL password (marked sensitive).
-output "db_password" {
-  value       = google_sql_user.guac-db-user.password
-  description = "Guacamole DB User Password"
-  sensitive   = true
 }
 
 # External hostname (sslip.io or custom domain) used to access Guacamole over HTTPS.
