@@ -64,7 +64,8 @@ flowchart TB
 | [`terraform/`](terraform/README.md) | Single-stage Terraform configuration provisioning VPC networking, GKE Autopilot, Cloud SQL for MySQL 8.0, Artifact Registry, IAM / Workload Identity bindings, and rendered configuration files. |
 | [`client/`](client/README.md) | Custom `guacamole-client-iap` Docker image (`guacamole/guacamole:1.6.0`), the Java 21 `guacamole-auth-googleiap` Maven extension, and Kubernetes manifests for the client Pod, Service, Ingress, ManagedCertificate, and BackendConfig. |
 | [`server/`](server/README.md) | Kubernetes Deployment and Service manifests for `guacamole-server` (`guacamole/guacd:1.6.0`). |
-| [`bin/read-tf-output.sh`](bin/read-tf-output.sh) | Sourced helper script that exports Terraform outputs (`PROJECT_ID`, `GKE_CLUSTER`, `ARTIFACT_REGISTRY_REPO`, `GUACAMOLE_URL`, etc.) as shell environment variables. |
+| [`bin/read-tf-output.sh`](bin/read-tf-output.sh) | Sourced helper script that exports Terraform outputs (`PROJECT_ID`, `GKE_CLUSTER`, `ARTIFACT_REGISTRY_REPO`, `GUACAMOLE_URL`, `ADMIN_EMAIL`, etc.) as shell environment variables. |
+| [`bin/create-test-vms.sh`](bin/create-test-vms.sh) | Helper script that provisions a Windows RDP test VM and a Linux VNC test VM, resets the Windows admin password, and generates a Guacamole batch-import JSON file (`test-connections.json`). |
 | [`kustomization.yaml`](kustomization.yaml) | Root Kustomize manifest assembling the `guacamole` Namespace, `svc-guacamole` ServiceAccount, ConfigMap, Secrets (`db-user-pass` and `guacamole-db-init`), and client/server workloads. |
 | [`skaffold.yaml`](skaffold.yaml) | Skaffold `v4beta5` pipeline for building `guacamole-client-iap` (`linux/amd64`) locally or via Google Cloud Build (`-p cloudbuild`) and deploying via Kustomize. |
 
@@ -123,13 +124,23 @@ kubectl get managedcertificate guacamole-client-cert -n guacamole
 
 Once the certificate status is `Active`, open `${GUACAMOLE_URL}` in your browser and sign in with your Google identity.
 
+### Step 5 (Optional): Create Test VMs & Batch-Import Connections
+To provision a Windows test VM (`windows-vm` over RDP with NLA) and a Linux desktop test VM (`linux-vm` over VNC with XFCE4 + TigerVNC) and generate a [Guacamole batch-import JSON file](https://guacamole.apache.org/doc/gug/batch-import.html) (`test-connections.json`) under `ROOT/Test Group`:
+
+```bash
+./bin/create-test-vms.sh
+```
+
+Follow the on-screen instructions printed by the script to import `test-connections.json` under **Settings** → **Connections** → **Import**.
+
 ---
 
 ## Teardown
 
-To delete the Kubernetes workloads and tear down all Google Cloud infrastructure cleanly:
+To delete any test VMs, Kubernetes workloads, and Google Cloud infrastructure cleanly:
 
 ```bash
+gcloud compute instances delete windows-vm linux-vm --zone="${ZONE}" --project="${PROJECT_ID}" --quiet || true
 skaffold delete
 terraform -chdir=terraform destroy -var="project_id=${PROJECT_ID}"
 ```

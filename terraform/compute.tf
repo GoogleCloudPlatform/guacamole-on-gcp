@@ -69,15 +69,15 @@ resource "google_compute_firewall" "vpc-firewall" {
   source_ranges = ["35.235.240.0/20"]
 }
 
-# Allow guacd pods in GKE to initiate SSH (22) and RDP (3389) connections to target VMs in the VPC.
+# Allow guacd pods in GKE to initiate SSH (22), RDP (3389), and VNC (5900-5901) connections to target VMs in the VPC.
 resource "google_compute_firewall" "permit-guac-to-vm-traffic" {
   name    = "permit-guacd-to-vm-traffic"
   network = google_compute_network.vpc.name
 
-  # Permit SSH (22) and RDP (3389) from guacd to internal Compute Engine instances.
+  # Permit SSH (22), RDP (3389), and VNC (5900-5901) from guacd to internal Compute Engine instances.
   allow {
     protocol = "tcp"
-    ports    = ["22", "3389"]
+    ports    = ["22", "3389", "5900", "5901"]
   }
 
   # Include both the GKE pod CIDR and node subnet CIDR to cover intra-VPC pod-to-VM and SNAT traffic.

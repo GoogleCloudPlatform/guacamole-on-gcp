@@ -43,4 +43,27 @@ INSERT IGNORE INTO guacamole_system_permission (entity_id, permission)
         (@entity, 'ADMINISTER'),
         (@entity, 'AUDIT');
 
+-- Create the 'Test Group' organizational connection group under ROOT idempotently
+INSERT INTO guacamole_connection_group (parent_id, connection_group_name, type)
+SELECT NULL, 'Test Group', 'ORGANIZATIONAL'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM guacamole_connection_group
+    WHERE parent_id IS NULL AND connection_group_name = 'Test Group'
+);
+
+SET @test_group_id = (
+    SELECT connection_group_id FROM guacamole_connection_group
+    WHERE parent_id IS NULL AND connection_group_name = 'Test Group'
+    LIMIT 1
+);
+
+-- Grant the admin user permissions on 'Test Group' idempotently
+INSERT IGNORE INTO guacamole_connection_group_permission (entity_id, connection_group_id, permission)
+    VALUES
+        (@entity, @test_group_id, 'READ'),
+        (@entity, @test_group_id, 'UPDATE'),
+        (@entity, @test_group_id, 'DELETE'),
+        (@entity, @test_group_id, 'ADMINISTER');
+
 COMMIT;
