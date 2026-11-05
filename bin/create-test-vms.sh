@@ -166,10 +166,7 @@ else
     --metadata-from-file="startup-script=${TMP_STARTUP}"
 fi
 
-LINUX_IP="$(gcloud compute instances describe "${LINUX_VM}" \
-  --project="${PROJECT_ID}" \
-  --zone="${ZONE}" \
-  --format="get(networkInterfaces[0].networkIP)")"
+LINUX_HOST="${LINUX_VM}.${ZONE}.c.${PROJECT_ID}.internal"
 
 # ------------------------------------------------------------------------------
 # 2. Create or reuse the Windows RDP test VM and obtain the Windows password.
@@ -195,10 +192,7 @@ else
     --shielded-secure-boot
 fi
 
-WINDOWS_IP="$(gcloud compute instances describe "${WINDOWS_VM}" \
-  --project="${PROJECT_ID}" \
-  --zone="${ZONE}" \
-  --format="get(networkInterfaces[0].networkIP)")"
+WINDOWS_HOST="${WINDOWS_VM}.${ZONE}.c.${PROJECT_ID}.internal"
 
 if [[ -z "${WINDOWS_PASSWORD}" ]]; then
   echo "==> Resetting Windows password for user '${WINDOWS_USER}' on '${WINDOWS_VM}' (waiting for Windows guest agent if newly created)..."
@@ -230,11 +224,11 @@ jq -n \
   --arg group "${CONNECTION_GROUP}" \
   --arg admin_user "${ADMIN_EMAIL_LOWER}" \
   --arg win_name "${WINDOWS_VM} (RDP)" \
-  --arg win_ip "${WINDOWS_IP}" \
+  --arg win_host "${WINDOWS_HOST}" \
   --arg win_user "${WINDOWS_USER}" \
   --arg win_pass "${WINDOWS_PASSWORD}" \
   --arg lin_name "${LINUX_VM} (VNC)" \
-  --arg lin_ip "${LINUX_IP}" \
+  --arg lin_host "${LINUX_HOST}" \
   --arg vnc_pass "${VNC_PASSWORD}" \
   '[
     {
@@ -243,7 +237,7 @@ jq -n \
       group: $group,
       users: [$admin_user],
       parameters: {
-        hostname: $win_ip,
+        hostname: $win_host,
         port: "3389",
         username: $win_user,
         password: $win_pass,
@@ -258,7 +252,7 @@ jq -n \
       group: $group,
       users: [$admin_user],
       parameters: {
-        hostname: $lin_ip,
+        hostname: $lin_host,
         port: "5901",
         password: $vnc_pass,
         "color-depth": "24"
@@ -273,8 +267,8 @@ cat <<EOF
 ================================================================================
 Test VMs & Guacamole Import File Ready
 ================================================================================
-  Windows RDP VM : ${WINDOWS_VM} (${WINDOWS_IP}:3389, user: ${WINDOWS_USER})
-  Linux VNC VM   : ${LINUX_VM} (${LINUX_IP}:5901, XFCE4 + TigerVNC)
+  Windows RDP VM : ${WINDOWS_VM} (${WINDOWS_HOST}:3389, user: ${WINDOWS_USER})
+  Linux VNC VM   : ${LINUX_VM} (${LINUX_HOST}:5901, XFCE4 + TigerVNC)
   Target Group   : ${CONNECTION_GROUP}
   Admin User     : ${ADMIN_EMAIL_LOWER}
   Import File    : ${IMPORT_FILE}
