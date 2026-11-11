@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Cluster-internal ClusterIP Service exposing the guacd daemon on port 4822 to guacamole-client.
 apiVersion: v1
 kind: Service
 metadata:
   name: guacamole-server-service
   namespace: guacamole
+# Route internal Guacamole protocol connections on port 4822 to guacamole-server Pods.
 spec:
   selector:
     app: guacamole-server

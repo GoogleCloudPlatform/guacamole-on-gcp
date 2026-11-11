@@ -1,0 +1,23 @@
+# .gcloudignore controls which files are uploaded by `gcloud deploy releases create`
+# and `gcloud builds submit`. Unlike .gitignore, it intentionally includes the
+# non-sensitive Terraform-rendered Kustomize inputs (client-settings.properties,
+# guacamole-client.image-patch.yaml, guacamole-client.managedcert.yaml,
+# guacamole-client.secretproviderclass.yaml, and guacamole-client.serviceaccount.yaml)
+# while excluding Terraform state and local secrets.
+
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+docs/
+terraform/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+**/target/
+test-connections.json
+insert-admin-user.sql
+client/db-secrets.properties

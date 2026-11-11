@@ -1,0 +1,2 @@
+# Exclude local Maven build outputs from the Docker build context
+**/target/

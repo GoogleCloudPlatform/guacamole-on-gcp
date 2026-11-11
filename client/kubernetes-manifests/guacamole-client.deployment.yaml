@@ -13,70 +13,227 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    name: guacamole-client
-    namespace: guacamole
-    labels:
+# Deployment running the Guacamole 1.6.0 web client alongside the Cloud SQL Auth Proxy v2 sidecar.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole-client
+  namespace: guacamole
+  labels:
+    app: guacamole-client
+spec:
+  # Default replica count is 1; RollingUpdate ensures smooth rollouts.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  # Match Pods labeled with app: guacamole-client.
+  selector:
+    matchLabels:
       app: guacamole-client
-  spec:
-    
-    # replicas: not specified here:
-    # 1. Default is 1.
-    # 2. Will be tuned in real time if DNS horizontal auto-scaling is turned on.
-    strategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 1
-    selector:
-      matchLabels:
+  template:
+    metadata:
+      labels:
         app: guacamole-client
-    template:
-      metadata:
-        labels:
-          app: guacamole-client
-      spec:
-        serviceAccountName: svc-guacamole
-        containers:
-        - name: guacamole-client
-          image: guacamole-client-iap
-          imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: config-volume
-              mountPath: /etc/config
-          envFrom:
-            - configMapRef:
-                name: guacamole-client-settings
-            - secretRef:
-                name: db-user-pass
-          resources:
-            limits:
-              cpu: 1000m
-              memory: 2000Mi
-            requests:
-              cpu: 1000m
-              memory: 2000Mi
-          ports:
-          - containerPort: 8080
-            name: serving-port
-            protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /guacamole
-              port: serving-port
-            failureThreshold: 1
-            periodSeconds: 10
-            initialDelaySeconds: 60
-            timeoutSeconds: 5 
-          startupProbe:
-            httpGet:
-              path: /guacamole
-              port: serving-port
-            failureThreshold: 30
-            periodSeconds: 10
-            initialDelaySeconds: 20
-        volumes:
-          - name: config-volume
-            configMap:
-              name: java-trust-store
+    spec:
+      # Bind Pod to the Workload Identity-enabled ServiceAccount (svc-guacamole).
+      serviceAccountName: svc-guacamole
+      # Ensure shared emptyDir volumes are writable by non-root UID/GID 1001.
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+      # Native sidecar container: Cloud SQL Auth Proxy v2 connecting over Private IP using Workload Identity.
+      # Defining restartPolicy: Always in initContainers starts the proxy before init-db and keeps it running.
+      - name: cloud-sql-proxy
+        image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+        restartPolicy: Always
+        args:
+          - "--private-ip"
+          - "--structured-logs"
+          - "--health-check"
+          - "--http-address=0.0.0.0"
+          - "--http-port=9090"
+          - "--port=3306"
+          - "$(CLOUD_SQL_CONNECTION_NAME)"
+        # Inject CLOUD_SQL_CONNECTION_NAME from the guacamole-client-settings ConfigMap.
+        envFrom:
+          - configMapRef:
+              name: guacamole-client-settings
+        # Wait until the Cloud SQL Auth Proxy HTTP healthcheck reports /startup ready
+        # before starting subsequent initContainers (while keeping port 3306 bound to 127.0.0.1).
+        startupProbe:
+          httpGet:
+            path: /startup
+            port: 9090
+          initialDelaySeconds: 1
+          periodSeconds: 2
+          failureThreshold: 30
+        # Lightweight resource allocation for the Cloud SQL Auth Proxy sidecar.
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        # Enforce non-root execution with all Linux capabilities dropped.
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      # InitContainer 1: Extract the official Guacamole 1.6.0 MySQL schema from the container image.
+      - name: copy-schema
+        image: guacamole-client-iap
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -ce
+          - |
+            SCHEMA_FILE=$(find /opt/guacamole -path '*mysql*' -name '001-create-schema.sql' | head -n 1)
+            if [ -z "${SCHEMA_FILE}" ]; then
+              echo "ERROR: Could not locate MySQL 001-create-schema.sql under /opt/guacamole" >&2
+              exit 1
+            fi
+            cp "${SCHEMA_FILE}" /schema/001-create-schema.sql
+        volumeMounts:
+          - name: db-schema
+            mountPath: /schema
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      # InitContainer 2: Apply the MySQL schema (if not already present) and idempotent admin user SQL.
+      - name: init-db
+        image: mysql:8.4
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -ce
+          - |
+            export MYSQL_PWD="$(cat /secrets/mysql-password)"
+            echo "Waiting for Cloud SQL MySQL at ${MYSQL_HOSTNAME}:${MYSQL_PORT}..."
+            until mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -e "SELECT 1" "${MYSQL_DATABASE}" >/dev/null 2>&1; do
+              sleep 2
+            done
+            TABLE_COUNT=$(mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -N -s "${MYSQL_DATABASE}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${MYSQL_DATABASE}' AND table_name = 'guacamole_entity';")
+            if [ "${TABLE_COUNT}" -eq 0 ]; then
+              echo "Applying Guacamole 1.6.0 MySQL schema from container..."
+              mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /schema/001-create-schema.sql
+            else
+              echo "Guacamole schema already initialized (guacamole_entity exists)."
+            fi
+            echo "Ensuring Guacamole admin user permissions are configured..."
+            mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /secrets/insert-admin-user.sql
+            echo "Database initialization complete."
+        envFrom:
+          - configMapRef:
+              name: guacamole-client-settings
+        volumeMounts:
+          - name: db-schema
+            mountPath: /schema
+            readOnly: true
+          - name: runtime-secrets
+            mountPath: /secrets
+            readOnly: true
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      containers:
+      # Primary container: Apache Guacamole 1.6.0 web client with IAP and MySQL extensions.
+      - name: guacamole-client
+        image: guacamole-client-iap
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -ce
+          - |
+            export MYSQL_PASSWORD="$(cat /secrets/mysql-password)"
+            exec /opt/guacamole/bin/entrypoint.sh
+        envFrom:
+          - configMapRef:
+              name: guacamole-client-settings
+        volumeMounts:
+          - name: runtime-secrets
+            mountPath: /secrets
+            readOnly: true
+        # CPU and memory requests/limits sized for Tomcat 9 + JDK 21 on GKE Autopilot.
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 2000Mi
+          requests:
+            cpu: 1000m
+            memory: 2000Mi
+        # Expose Tomcat HTTP connector on port 8080 for GKE container-native load balancing.
+        ports:
+        - containerPort: 8080
+          name: serving-port
+          protocol: TCP
+        # Readiness probe tells the GKE Ingress Load Balancer when Tomcat is ready to serve /.
+        readinessProbe:
+          httpGet:
+            path: /
+            port: serving-port
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Liveness probe restarts the container only after 3 consecutive failures to avoid false restarts.
+        livenessProbe:
+          httpGet:
+            path: /
+            port: serving-port
+          failureThreshold: 3
+          periodSeconds: 10
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+        # Startup probe allows up to 5 minutes for initial container and extension initialization.
+        startupProbe:
+          httpGet:
+            path: /
+            port: serving-port
+          failureThreshold: 30
+          periodSeconds: 10
+          initialDelaySeconds: 20
+        # Enforce non-root execution as UID 1001 (the upstream guacamole user in 1.6.0).
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      volumes:
+      # Ephemeral volume shared between copy-schema and init-db initContainers.
+      - name: db-schema
+        emptyDir: {}
+      # Mount secrets from Google Secret Manager via the GKE Secret Manager CSI add-on.
+      - name: runtime-secrets
+        csi:
+          driver: secrets-store-gke.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: guacamole-secrets

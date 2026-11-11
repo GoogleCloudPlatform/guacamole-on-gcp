@@ -13,37 +13,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Root Kustomization assembling Namespace, Workload Identity ServiceAccount, SecretProviderClass, ConfigMap, and workloads.
+# Sensitive values (MySQL password and admin bootstrap SQL) are stored in Google Secret Manager
+# and mounted at Pod startup via the GKE Secret Manager CSI add-on, so no Kubernetes Secrets are generated here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-configurations:
-- ./kustomizeconfig/backendconfig.yaml
-
+# Generate the guacamole-client-settings ConfigMap from the Terraform-rendered properties file.
 configMapGenerator:
 - envs:
   - ./client/client-settings.properties
   name: guacamole-client-settings
   namespace: guacamole
-- files:
-  - truststore.jks
-  - clientstore.jks
-  name: java-trust-store
-  namespace: guacamole
 
+# Apply the Terraform-rendered image patch so `kubectl apply -k .` resolves the Artifact Registry URI directly.
+patches:
+- path: client/kubernetes-manifests/guacamole-client.image-patch.yaml
 
-secretGenerator:
-- envs:
-  - ./client/db-secrets.properties
-  name: db-user-pass
-  namespace: guacamole
-
+# Apply the Namespace, Workload Identity ServiceAccount, SecretProviderClass, and RBAC resources first.
 resources:
+- client/kubernetes-manifests/guacamole.namespace.yaml
+- client/kubernetes-manifests/guacamole-client.serviceaccount.yaml
+- client/kubernetes-manifests/guacamole-client.secretproviderclass.yaml
+- client/kubernetes-manifests/guacamole-client.role.yaml
+- client/kubernetes-manifests/guacamole-client.rolebinding.yaml
+# Apply the Guacamole client Deployment, Service, BackendConfig, ManagedCertificate, and Ingress.
 - client/kubernetes-manifests/guacamole-client.backendconfig.yaml
 - client/kubernetes-manifests/guacamole-client.deployment.yaml
-- client/kubernetes-manifests/guacamole-client.ingress.yaml
-- client/kubernetes-manifests/guacamole-client.managedcert.yaml
-- client/kubernetes-manifests/guacamole-client.role.yaml
 - client/kubernetes-manifests/guacamole-client.service.yaml
+- client/kubernetes-manifests/guacamole-client.managedcert.yaml
+- client/kubernetes-manifests/guacamole-client.ingress.yaml
+# Apply the internal guacd server Deployment, ClusterIP Service, and HorizontalPodAutoscaler.
 - server/kubernetes-manifests/guacamole-server.deployment.yaml
 - server/kubernetes-manifests/guacamole-server.service.yaml
-- client/kubernetes-manifests/guacamole-client.rolebinding.yaml
+- server/kubernetes-manifests/guacamole-server.hpa.yaml

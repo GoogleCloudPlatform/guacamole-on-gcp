@@ -13,24 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Minimal Skaffold configuration retained solely for Google Cloud Deploy manifest rendering and deployment.
+# Direct deployments via `kubectl apply -k .` do not require Skaffold.
 apiVersion: skaffold/v4beta5
 kind: Config
-build:
-  artifacts:
-    - image: guacamole-client-iap
-      context: ./client
-      docker:
-        buildArgs:
-          CLIENT_IMAGE: guacamole/guacamole:1.5.2
 manifests:
   kustomize:
     paths:
       - .
 deploy:
   kubectl: {}
-profiles:
-  - name: cloudbuild
-    build:
-      googleCloudBuild: {}
-      
-

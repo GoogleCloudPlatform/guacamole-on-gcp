@@ -1,0 +1,69 @@
+/**
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+-- Create an Administrative Guacamole User idempotently for your Google IAP identity.
+-- Modify the SET @username line below if you wish to grant admin access to a different email.
+
+-- Admin user email identity (normalized to lowercase to match IAP extension output)
+SET @username = '${admin_email}';
+
+-- Generate salt and random password (unused when logging in via IAP, but required by schema)
+SET @salt = UNHEX(SHA2(UUID(), 256));
+SET @password = UNHEX(SHA2(UUID(), 256));
+
+START TRANSACTION;
+
+-- Insert the user entity if it does not already exist
+INSERT IGNORE INTO guacamole_entity (name, type)
+    VALUES (@username, 'USER');
+
+-- Look up the entity_id for the user entity
+SET @entity = (SELECT entity_id FROM guacamole_entity WHERE name = @username AND type = 'USER' LIMIT 1);
+
+-- Insert the guacamole_user record if it does not already exist
+INSERT IGNORE INTO guacamole_user (entity_id, password_salt, password_hash, password_date)
+    VALUES (@entity, @salt, UNHEX(SHA2(CONCAT(HEX(@password), HEX(@salt)), 256)), CURRENT_DATE());
+
+-- Grant ADMINISTER and AUDIT system permissions idempotently
+INSERT IGNORE INTO guacamole_system_permission (entity_id, permission)
+    VALUES
+        (@entity, 'ADMINISTER'),
+        (@entity, 'AUDIT');
+
+-- Create the 'Test Group' organizational connection group under ROOT idempotently
+INSERT INTO guacamole_connection_group (parent_id, connection_group_name, type)
+SELECT NULL, 'Test Group', 'ORGANIZATIONAL'
+FROM DUAL
+WHERE NOT EXISTS (
+    SELECT 1 FROM guacamole_connection_group
+    WHERE parent_id IS NULL AND connection_group_name = 'Test Group'
+);
+
+SET @test_group_id = (
+    SELECT connection_group_id FROM guacamole_connection_group
+    WHERE parent_id IS NULL AND connection_group_name = 'Test Group'
+    LIMIT 1
+);
+
+-- Grant the admin user permissions on 'Test Group' idempotently
+INSERT IGNORE INTO guacamole_connection_group_permission (entity_id, connection_group_id, permission)
+    VALUES
+        (@entity, @test_group_id, 'READ'),
+        (@entity, @test_group_id, 'UPDATE'),
+        (@entity, @test_group_id, 'DELETE'),
+        (@entity, @test_group_id, 'ADMINISTER');
+
+COMMIT;

@@ -14,26 +14,30 @@
 package com.google.cloud.iap.guacamole;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Scopes;
 import org.apache.guacamole.GuacamoleException;
 import org.apache.guacamole.environment.Environment;
 import org.apache.guacamole.environment.LocalEnvironment;
 import org.apache.guacamole.net.auth.AuthenticationProvider;
 
-/** Guice module which configures HTTP header-specific injections. */
+/**
+ * Guice module which configures dependency injection for the Google Cloud Identity-Aware Proxy
+ * (IAP) authentication provider.
+ */
 public class GoogleIapAuthenticationProviderModule extends AbstractModule {
 
   /** Guacamole server environment. */
   private final Environment environment;
 
   /**
-   * A reference to the HTTPHeaderAuthenticationProvider on behalf of which this module has
+   * A reference to the {@link GoogleIapAuthenticationProvider} on behalf of which this module has
    * configured injection.
    */
   private final AuthenticationProvider authProvider;
 
   /**
-   * Creates a new HTTP header authentication provider module which configures injection for the
-   * HTTPHeaderAuthenticationProvider.
+   * Creates a new Google IAP authentication provider module which configures injection for the
+   * {@link GoogleIapAuthenticationProvider}.
    *
    * @param authProvider The AuthenticationProvider for which injection is being configured.
    * @throws GuacamoleException If an error occurs while retrieving the Guacamole server
@@ -42,21 +46,22 @@ public class GoogleIapAuthenticationProviderModule extends AbstractModule {
   public GoogleIapAuthenticationProviderModule(AuthenticationProvider authProvider)
       throws GuacamoleException {
 
-    // Get local environment
+    // Obtain the singleton Guacamole server environment instance.
     this.environment = LocalEnvironment.getInstance();
 
-    // Store associated auth provider
+    // Store the associated authentication provider reference.
     this.authProvider = authProvider;
   }
 
   @Override
   protected void configure() {
 
-    // Bind core implementations of guacamole-ext classes
+    // Bind core implementations of guacamole-ext classes.
     bind(AuthenticationProvider.class).toInstance(authProvider);
     bind(Environment.class).toInstance(environment);
 
-    // Bind IAP-specific classes
-    bind(ConfigurationService.class);
+    // Bind IAP services in SINGLETON scope so BackendService ID and JWK caches persist across requests.
+    bind(ConfigurationService.class).in(Scopes.SINGLETON);
+    bind(AuthenticationProviderService.class).in(Scopes.SINGLETON);
   }
 }

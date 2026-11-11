@@ -13,49 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG CLIENT_IMAGE=guacamole-client:latest
+# Default base runtime image aligned to Apache Guacamole 1.6.0 (tomcat:9-jdk21).
+ARG CLIENT_IMAGE=guacamole/guacamole:1.6.0
 
-# Use official maven image for the build
+# Stage 1: Build the Google IAP authentication extension using Maven and Eclipse Temurin JDK 21.
 FROM maven:3-eclipse-temurin-21 AS builder
 
-# Use args to build radius auth extension such as
-# `--build-arg BUILD_PROFILE=lgpl-extensions`
+# Optional build profile argument for additional Guacamole extensions.
 ARG BUILD_PROFILE
 
-# Build environment variables
-ENV \
-    BUILD_DIR=/tmp/guacamole-docker-BUILD
+# Temporary directory used inside the builder stage to compile the extension.
+ENV BUILD_DIR=/tmp/guacamole-docker-BUILD
 
-# Add configuration scripts
-COPY ./bin /opt/guacamole/bin 
+# Copy the helper build script into /opt/guacamole/bin.
+COPY ./bin /opt/guacamole/bin
 
-# Copy the Google IAP extension source
+# Copy the Google IAP extension source tree into the builder working directory.
 COPY ./extensions/. ${BUILD_DIR}/extensions
 
-# Run the build itself
-RUN /opt/guacamole/bin/build-googleiap.sh ${BUILD_DIR}/extensions/guacamole-auth-googleiap /etc/guacamole
+# Compile, test, and package the extension and its runtime libraries into /etc/guacamole.
+RUN /opt/guacamole/bin/build-googleiap.sh "${BUILD_DIR}/extensions/guacamole-auth-googleiap" /etc/guacamole
 
-COPY ./guacamole.properties /etc/guacamole/guacamole.properties 
-
+# Stage 2: Assemble the production guacamole-client-iap runtime image on top of guacamole/guacamole:1.6.0.
 FROM $CLIENT_IMAGE
 
-# Remove detault webapps
-RUN rm -rf \
-        /usr/local/tomcat/webapps/docs \
-        /usr/local/tomcat/webapps/host-manager \
-        /usr/local/tomcat/webapps/manager \
-        /usr/local/tomcat/webapps/examples
-
-# Add internalProxies via RemoteIpValve to server.xml
-# - Will be possible via env, once PR merged: https://github.com/apache/guacamole-client/pull/489
-COPY ./tomcat/conf/server.xml /usr/local/tomcat/conf
-
-# This is where the build artifacts go in the runtime image
+# Guacamole 1.6.0 uses /etc/guacamole as the template directory to populate $GUACAMOLE_HOME at startup.
 WORKDIR /etc/guacamole
 
-COPY --from=builder /etc/guacamole/ .
+# Copy the compiled extension JAR and runtime dependency JARs with UID/GID 1001 ownership.
+COPY --from=builder --chown=guacamole:guacamole /etc/guacamole/ .
 
-# Start Guacamole under Tomcat, listening on 0.0.0.0:8080
+# Expose Tomcat's unprivileged HTTP port and start Guacamole via the 1.6.0 entrypoint script.
 EXPOSE 8080
-CMD ["/opt/guacamole/bin/start.sh" ]
-
+CMD ["/opt/guacamole/bin/entrypoint.sh"]

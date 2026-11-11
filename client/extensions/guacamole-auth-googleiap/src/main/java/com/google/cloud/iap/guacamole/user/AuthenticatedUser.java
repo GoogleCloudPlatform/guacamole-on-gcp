@@ -20,13 +20,15 @@
 package com.google.cloud.iap.guacamole.user;
 
 import com.google.inject.Inject;
+import java.util.Locale;
 import org.apache.guacamole.net.auth.AbstractAuthenticatedUser;
 import org.apache.guacamole.net.auth.AuthenticationProvider;
 import org.apache.guacamole.net.auth.Credentials;
 
 /**
- * An HTTP header implementation of AuthenticatedUser, associating a username and particular set of
- * credentials with the HTTP authentication provider.
+ * A Google Cloud Identity-Aware Proxy (IAP) implementation of {@link
+ * org.apache.guacamole.net.auth.AuthenticatedUser}, associating a verified email username and
+ * particular set of credentials with the Google IAP authentication provider.
  */
 public class AuthenticatedUser extends AbstractAuthenticatedUser {
 
@@ -37,23 +39,26 @@ public class AuthenticatedUser extends AbstractAuthenticatedUser {
   private Credentials credentials;
 
   /**
-   * Initializes this AuthenticatedUser using the given username and credentials.
+   * Initializes this AuthenticatedUser using the given verified email username and credentials.
    *
-   * @param username The username of the user that was authenticated.
+   * @param username The email address of the user that was authenticated by Google IAP.
    * @param credentials The credentials provided when this user was authenticated.
    */
   public void init(String username, Credentials credentials) {
+    // Store the credentials and normalize the user identifier to lowercase using Locale.ROOT.
     this.credentials = credentials;
-    setIdentifier(username.toLowerCase());
+    setIdentifier(username.toLowerCase(Locale.ROOT));
   }
 
   @Override
   public AuthenticationProvider getAuthenticationProvider() {
+    // Return the GoogleIapAuthenticationProvider that authenticated this user.
     return authProvider;
   }
 
   @Override
   public Credentials getCredentials() {
+    // Return the credentials associated with this user's session.
     return credentials;
   }
 }

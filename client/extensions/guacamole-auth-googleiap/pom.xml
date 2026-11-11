@@ -20,49 +20,60 @@ limitations under the License.
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                         http://maven.apache.org/maven-v4_0_0.xsd">
 
+    <!-- Maven coordinates for the Google Cloud IAP Guacamole 1.6.0 Authentication Extension -->
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.google.cloud.iap.guacamole</groupId>
     <artifactId>guacamole-auth-googleiap</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.1</version>
+    <version>1.6.0</version>
     <name>guacamole-auth-googleiap</name>
     <url>https://cloud.google.com/iap/</url>
 
+    <!-- Build properties targeting Java 21 LTS (matching guacamole/guacamole:1.6.0 tomcat:9-jdk21) -->
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
     </properties>
 
     <build>
         <plugins>
 
-            <!-- Written for Java 1.8 -->
+            <!-- Compile for Java 21 with compiler warnings enabled -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.3</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <release>21</release>
                     <showWarnings>true</showWarnings>
+                    <!-- Enable all lint warnings except annotation-processor and serialization UID checks -->
                     <compilerArgs>
-                        <arg>-Xlint:all,-processing</arg>
+                        <arg>-Xlint:all,-processing,-serial</arg>
                     </compilerArgs>
-                    <fork>true</fork>
                 </configuration>
             </plugin>
 
-            <!-- Copy dependencies prior to packaging -->
+            <!-- Run JUnit 5 unit tests during the test phase -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
+
+            <!-- Copy runtime dependencies into target/lib so they can be installed into /etc/guacamole/lib -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>2.10</version>
+                <version>3.8.1</version>
                 <executions>
+                    <!-- Run before packaging so target/lib is populated alongside the extension JAR -->
                     <execution>
                         <id>unpack-dependencies</id>
                         <phase>prepare-package</phase>
                         <goals>
                             <goal>copy-dependencies</goal>
                         </goals>
+                        <!-- Only copy runtime-scoped dependencies; provided dependencies (guacamole-ext, servlet-api) are excluded -->
                         <configuration>
                             <includeScope>runtime</includeScope>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
@@ -74,34 +85,19 @@ limitations under the License.
                 </executions>
             </plugin>
 
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>2.0.0</version>
-                <executions>
-                <execution>
-                    <id>download-licenses</id>
-                    <goals>
-                        <goal>download-licenses</goal>
-                    </goals>
-                </execution>
-                </executions>
-            </plugin>
-
-            <!-- Verify format using Apache RAT -->
+            <!-- Verify Apache 2.0 license headers across source files using Apache RAT -->
             <plugin>
                 <groupId>org.apache.rat</groupId>
                 <artifactId>apache-rat-plugin</artifactId>
-                <version>0.12</version>
-
+                <version>0.16.1</version>
+                <!-- Exclude JSON manifests and third-party license notices that cannot carry source comments -->
                 <configuration>
                     <excludes>
                         <exclude>**/*.json</exclude>
                         <exclude>src/licenses/**/*</exclude>
                     </excludes>
                 </configuration>
-
-                <!-- Bind RAT to validate phase -->
+                <!-- Fail the build during the validate phase if any source file is missing its license header -->
                 <executions>
                     <execution>
                         <id>validate</id>
@@ -112,15 +108,17 @@ limitations under the License.
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Package the extension JAR with its manifest index -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.4.2</version>
                 <configuration>
+                    <!-- Generate JAR index and Class-Path entries referencing /etc/guacamole/lib -->
                     <archive>
                         <index>true</index>
                         <manifest>
-                            <mainClass>com.google.cloud.iap.guacamole.App</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
                         </manifest>
@@ -131,60 +129,96 @@ limitations under the License.
         </plugins>
     </build>
 
+    <dependencyManagement>
+        <dependencies>
+            <!-- Align Google Auth library artifacts with google-cloud-compute 1.65.0 (1.30.1+) -->
+            <dependency>
+                <groupId>com.google.auth</groupId>
+                <artifactId>google-auth-library-bom</artifactId>
+                <version>1.30.1</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
 
-        <!-- Guacamole Extension API -->
+        <!-- Guacamole 1.6.0 Extension API (provided by the Guacamole web application at runtime) -->
         <dependency>
             <groupId>org.apache.guacamole</groupId>
             <artifactId>guacamole-ext</artifactId>
-            <version>1.5.2</version>
+            <version>1.6.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Java Servlet API (provided by Apache Tomcat 9 in guacamole/guacamole:1.6.0) -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>3.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Google Cloud Compute Engine API client for resolving BackendService IDs -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-compute</artifactId>
+            <version>1.65.0</version>
+        </dependency>
+
+        <!-- Official Kubernetes Java client for reading Service NEG status annotations -->
+        <dependency>
+            <groupId>io.kubernetes</groupId>
+            <artifactId>client-java</artifactId>
+            <version>21.0.2</version>
             <scope>compile</scope>
         </dependency>
 
-        <!-- Guice -->
+        <!-- Nimbus JOSE + JWT for verifying ES256 IAP JWT signatures and JWK sets -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.47</version>
+        </dependency>
+
+        <!-- Google Guice for dependency injection within the extension -->
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
             <version>7.0.0</version>
         </dependency>
 
+        <!-- JUnit 5 Jupiter for unit testing JWT verification and BackendService discovery -->
         <dependency>
-            <groupId>com.google.inject.extensions</groupId>
-            <artifactId>guice-multibindings</artifactId>
-            <version>4.2.3</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.3</version>
+            <scope>test</scope>
         </dependency>
 
-        <!-- Java servlet API -->
+        <!-- Mockito core library for mocking Environment, ConfigurationService, and HttpServletRequest -->
         <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>servlet-api</artifactId>
-            <version>3.0-alpha-1</version>
-            <scope>provided</scope>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
         </dependency>
 
+        <!-- Mockito JUnit Jupiter extension for integrating Mockito lifecycle with JUnit 5 -->
         <dependency>
-            <groupId>com.nimbusds</groupId>
-            <artifactId>nimbus-jose-jwt</artifactId>
-	    <version>9.37.2</version>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
         </dependency>
 
+        <!-- Logback test logger implementation -->
         <dependency>
-            <groupId>com.google.api-client</groupId>
-            <artifactId>google-api-client</artifactId>
-            <version>2.2.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.cloud</groupId>
-            <artifactId>google-cloud-compute</artifactId>
-            <version>1.30.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.kubernetes</groupId>
-            <artifactId>client-java</artifactId>
-            <version>18.0.0</version>
-            <scope>compile</scope>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.12</version>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>

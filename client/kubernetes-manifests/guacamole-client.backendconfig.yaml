@@ -13,19 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# GKE BackendConfig configuring Load Balancer health checks, WebSocket timeout, and Google Cloud IAP.
 apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
-    name: guacamole-config-default
-    namespace: guacamole
+  name: guacamole-config-default
+  namespace: guacamole
 spec:
-    healthCheck:
-        checkIntervalSec: 15
-        port: 8080
-        type: HTTP
-        requestPath: /guacamole/index.html
-    # This timeout is how long the websocket used by Guacamole client can remain open
-    timeoutSec: 7200
-    iap:
-        enabled: true
-    
+  # Probe /index.html on Tomcat port 8080 so the Load Balancer verifies web app readiness.
+  healthCheck:
+    checkIntervalSec: 15
+    port: 8080
+    type: HTTP
+    requestPath: /index.html
+  # Keep the HTTP(S) Load Balancer connection open for up to 2 hours for active Guacamole WebSockets.
+  timeoutSec: 7200
+  # Enable Google Cloud Identity-Aware Proxy on the Load Balancer BackendService without an OAuth secret.
+  iap:
+    enabled: true

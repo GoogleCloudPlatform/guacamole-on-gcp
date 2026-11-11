@@ -13,17 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# External Google Cloud Application Load Balancer Ingress fronting guacamole-client-service.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-    name: guacamole-client-ingress
-    namespace: guacamole
-    annotations:
-        kubernetes.io/ingress.global-static-ip-name: guacamole-external
-        networking.gke.io/managed-certificates: guacamole-client-cert
+  name: guacamole-client-ingress
+  namespace: guacamole
+  # Bind the reserved static external IP and Google-managed SSL certificate to the Load Balancer.
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: guacamole-external
+    networking.gke.io/managed-certificates: guacamole-client-cert
+# Route all incoming HTTPS traffic to guacamole-client-service on port 80.
 spec:
-    defaultBackend:
-        service:
-          name: guacamole-client-service
-          port: 
-            number: 80
+  defaultBackend:
+    service:
+      name: guacamole-client-service
+      port:
+        number: 80

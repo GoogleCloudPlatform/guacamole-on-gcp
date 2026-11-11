@@ -13,19 +13,19 @@
  */
 package com.google.cloud.iap.guacamole;
 
-// import org.apache.guacamole.properties.IntegerGuacamoleProperty;
 import org.apache.guacamole.properties.StringGuacamoleProperty;
 
 /**
- * Provides properties required for use of the HTTP header authentication provider. These properties
- * will be read from guacamole.properties when the HTTP authentication provider is used.
+ * Provides properties required for use of the Google Cloud Identity-Aware Proxy (IAP)
+ * authentication provider. These properties are read from {@code guacamole.properties} (or
+ * corresponding environment variables when {@code enable-environment-properties} is active).
  */
 public class GoogleIapGuacamoleProperties {
 
-  /** This class should not be instantiated. */
+  /** This utility class should not be instantiated. */
   private GoogleIapGuacamoleProperties() {}
 
-  /** The Google Cloud Project ID hosting the service */
+  /** The Google Cloud Project ID hosting the GKE cluster and Load Balancer. */
   public static final StringGuacamoleProperty GOOGLE_PROJECT_ID =
       new StringGuacamoleProperty() {
 
@@ -35,6 +35,7 @@ public class GoogleIapGuacamoleProperties {
         }
       };
 
+  /** The numeric Google Cloud Project Number used to construct the expected IAP JWT audience. */
   public static final StringGuacamoleProperty GOOGLE_PROJECT_NUMBER =
       new StringGuacamoleProperty() {
 
@@ -44,7 +45,7 @@ public class GoogleIapGuacamoleProperties {
         }
       };
 
-  /** The k8s Service for the Guacamole Client */
+  /** The Kubernetes Service name for the Guacamole Client (e.g., guacamole-client-service). */
   public static final StringGuacamoleProperty GOOGLE_CLIENT_SERVICE_NAME =
       new StringGuacamoleProperty() {
 
@@ -54,6 +55,7 @@ public class GoogleIapGuacamoleProperties {
         }
       };
 
+  /** The Kubernetes Service port exposed to the Ingress NEG (e.g., 80). */
   public static final StringGuacamoleProperty GOOGLE_CLIENT_SERVICE_PORT =
       new StringGuacamoleProperty() {
 
@@ -63,13 +65,26 @@ public class GoogleIapGuacamoleProperties {
         }
       };
 
+  /** The Kubernetes Namespace containing the Guacamole Client Service (e.g., guacamole). */
   public static final StringGuacamoleProperty GOOGLE_CLIENT_SERVICE_NAMESPACE =
       new StringGuacamoleProperty() {
 
         @Override
         public String getName() {
-
           return "google-client-service-namespace";
+        }
+      };
+
+  /**
+   * Optional explicit override for the numeric Google Cloud BackendService ID. When set, dynamic
+   * Kubernetes/Compute Engine API discovery is bypassed.
+   */
+  public static final StringGuacamoleProperty GOOGLE_BACKEND_SERVICE_ID =
+      new StringGuacamoleProperty() {
+
+        @Override
+        public String getName() {
+          return "google-backend-service-id";
         }
       };
 }
