@@ -1,6 +1,6 @@
 # Apache Guacamole on Google Cloud (GKE Autopilot + Identity-Aware Proxy)
 
-This repository provides a reference architecture and end-to-end deployment automation for running **Apache Guacamole 1.6.0**—a clientless, browser-based remote desktop (RDP/VNC) and SSH gateway—on **Google Kubernetes Engine (GKE) Autopilot**, protected by **Google Cloud Identity-Aware Proxy (IAP)** and backed by **Cloud SQL for MySQL 8.0**.
+This repository provides a reference architecture and end-to-end deployment automation for running **Apache Guacamole 1.6.0**—a clientless, browser-based remote desktop (RDP/VNC) and SSH gateway—on **Google Kubernetes Engine (GKE) Autopilot**, protected by **Google Cloud Identity-Aware Proxy (IAP)** and backed by **Cloud SQL for MySQL 8.4**.
 
 ---
 
@@ -21,7 +21,7 @@ flowchart TB
             subgraph GKE["GKE Autopilot Private Cluster (guacamole-gke)"]
                 K8sAPI["Kubernetes API Server<br/>(Service NEG Annotation)"]
                 subgraph PodClient["Pod: guacamole-client (K8s SA: svc-guacamole)"]
-                    InitDB["InitContainers: copy-schema + init-db (mysql:8.0)<br/>(Mounts secrets via GKE Secret Manager CSI & bootstraps schema)"]
+                    InitDB["InitContainers: copy-schema + init-db (mysql:8.4)<br/>(Mounts secrets via GKE Secret Manager CSI & bootstraps schema)"]
                     GuacClient["Container: guacamole-client-iap (Guacamole 1.6.0)<br/>(guacamole-auth-googleiap + guacamole-auth-jdbc-mysql)"]
                     SQLProxy["Native Sidecar: cloud-sql-proxy:2.14.1<br/>(127.0.0.1:3306 via Workload Identity)"]
                 end
@@ -30,7 +30,7 @@ flowchart TB
                 end
             end
 
-            CloudSQL[("Cloud SQL for MySQL 8.0<br/>(Database: guacamole, Private IP)")]
+            CloudSQL[("Cloud SQL for MySQL 8.4<br/>(Database: guacamole, Private IP)")]
             TargetVMs["Target Compute Engine VMs<br/>(SSH / RDP / VNC Endpoints in VPC)"]
         end
     end
@@ -55,7 +55,7 @@ flowchart TB
 2. **Automatic Database Initialization & Secret Management (`guacamole-auth-jdbc-mysql` + Google Secret Manager CSI + Cloud SQL Auth Proxy)**:
    - Sensitive values—the Cloud SQL password (`guacamole-db-password`) and the admin bootstrap SQL script (`guacamole-db-init-sql`)—are stored directly in **Google Secret Manager** by Terraform rather than written to local files or Kubernetes `Secret` manifests.
    - On Pod startup, the **GKE Secret Manager CSI add-on** (`secrets-store-gke.csi.k8s.io`) mounts `guacamole-db-password` and `guacamole-db-init-sql` into `/secrets` in memory using the `guacamole-secrets` `SecretProviderClass` and the Pod's **GKE Workload Identity** (`roles/secretmanager.secretAccessor`).
-   - Simultaneously, the **Cloud SQL Auth Proxy v2** (`gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1`) native sidecar starts first and authenticates to **Cloud SQL for MySQL 8.0** over Private IP via **GKE Workload Identity** (`roles/cloudsql.client`).
+   - Simultaneously, the **Cloud SQL Auth Proxy v2** (`gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1`) native sidecar starts first and authenticates to **Cloud SQL for MySQL 8.4** over Private IP via **GKE Workload Identity** (`roles/cloudsql.client`).
    - Next, the `copy-schema` and `init-db` `initContainers` extract `/opt/guacamole/extensions/guacamole-auth-jdbc/mysql/schema/001-create-schema.sql` from the `guacamole-client-iap` container image, apply the schema if `guacamole_entity` does not yet exist, and idempotently execute `/secrets/insert-admin-user.sql` to grant the deploying Google identity `ADMINISTER` and `AUDIT` permissions.
    - Once initialized, Guacamole's MySQL extension trusts the email identity verified by the IAP extension and queries `127.0.0.1:3306` to load that user's authorized SSH/RDP/VNC connections and system permissions.
 
@@ -65,7 +65,7 @@ flowchart TB
 
 | Path | Description |
 | :--- | :--- |
-| [`terraform/`](terraform/README.md) | Single-stage Terraform configuration provisioning VPC networking, GKE Autopilot, Cloud SQL for MySQL 8.0, Google Secret Manager secrets, Artifact Registry, Google Cloud Deploy pipeline/target, IAM / Workload Identity bindings, and rendered configuration files. |
+| [`terraform/`](terraform/README.md) | Single-stage Terraform configuration provisioning VPC networking, GKE Autopilot, Cloud SQL for MySQL 8.4, Google Secret Manager secrets, Artifact Registry, Google Cloud Deploy pipeline/target, IAM / Workload Identity bindings, and rendered configuration files. |
 | [`client/`](client/README.md) | Custom `guacamole-client-iap` Docker image (`guacamole/guacamole:1.6.0`), the Java 21 `guacamole-auth-googleiap` Maven extension, and Kubernetes manifests for the client Pod, Service, Ingress, ManagedCertificate, and BackendConfig. |
 | [`server/`](server/README.md) | Kubernetes Deployment, Service, and `HorizontalPodAutoscaler` manifests for `guacamole-server` (`guacamole/guacd:1.6.0`). |
 | [`bin/read-tf-output.sh`](bin/read-tf-output.sh) | Sourced helper script that exports Terraform outputs (`PROJECT_ID`, `GKE_CLUSTER`, `ARTIFACT_REGISTRY_REPO`, `CLOUDDEPLOY_PIPELINE`, `GUACAMOLE_URL`, `ADMIN_EMAIL`, etc.) as shell environment variables. |
@@ -91,7 +91,7 @@ flowchart TB
 ## Quickstart Deployment Guide
 
 ### Step 1: Provision Google Cloud Infrastructure (Single-Stage Terraform)
-Run Terraform inside [`terraform/`](terraform/README.md) to enable required APIs, create the VPC, GKE Autopilot cluster, Cloud SQL MySQL 8.0 instance and `guacamole` database, Google Secret Manager secrets (`guacamole-db-password` and `guacamole-db-init-sql`), Artifact Registry repository, Google Cloud Deploy pipeline (`guacamole-pipeline`), and Workload Identity IAM bindings, and render the non-sensitive local configuration files:
+Run Terraform inside [`terraform/`](terraform/README.md) to enable required APIs, create the VPC, GKE Autopilot cluster, Cloud SQL MySQL 8.4 instance and `guacamole` database, Google Secret Manager secrets (`guacamole-db-password` and `guacamole-db-init-sql`), Artifact Registry repository, Google Cloud Deploy pipeline (`guacamole-pipeline`), and Workload Identity IAM bindings, and render the non-sensitive local configuration files:
 
 ```bash
 terraform -chdir=terraform init

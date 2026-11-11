@@ -24,7 +24,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   depends_on              = [module.project-services]
 }
 
-# Provision the private Cloud SQL for MySQL 8.0 instance used to store Guacamole connections and permissions.
+# Provision the private Cloud SQL for MySQL 8.4 (Enterprise edition) instance used to store Guacamole connections and permissions.
 resource "google_sql_database_instance" "guacamole-mysql" {
   /*
     Random instance name needed because:
@@ -32,15 +32,16 @@ resource "google_sql_database_instance" "guacamole-mysql" {
     See https://cloud.google.com/sql/docs/mysql/delete-instance for details.
   */
   name                = "${var.db_name}-${random_id.suffix.hex}"
-  database_version    = "MYSQL_8_0"
+  database_version    = "MYSQL_8_4"
   region              = var.region
   deletion_protection = var.deletion_protection
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
 
-  # Configure instance tier and disable public IP so all connections traverse the private VPC via Cloud SQL Auth Proxy.
+  # Configure Enterprise edition and instance tier, and disable public IP so all connections traverse the private VPC via Cloud SQL Auth Proxy.
   settings {
-    tier = "db-f1-micro"
+    edition = "ENTERPRISE"
+    tier    = "db-f1-micro"
     ip_configuration {
       ipv4_enabled    = false
       private_network = google_compute_network.vpc.id

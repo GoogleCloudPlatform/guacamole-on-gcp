@@ -116,7 +116,7 @@ spec:
               - ALL
       # InitContainer 2: Apply the MySQL schema (if not already present) and idempotent admin user SQL.
       - name: init-db
-        image: mysql:8.0
+        image: mysql:8.4
         imagePullPolicy: IfNotPresent
         command:
           - /bin/sh
@@ -124,18 +124,18 @@ spec:
           - |
             export MYSQL_PWD="$(cat /secrets/mysql-password)"
             echo "Waiting for Cloud SQL MySQL at ${MYSQL_HOSTNAME}:${MYSQL_PORT}..."
-            until mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -e "SELECT 1" "${MYSQL_DATABASE}" >/dev/null 2>&1; do
+            until mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -e "SELECT 1" "${MYSQL_DATABASE}" >/dev/null 2>&1; do
               sleep 2
             done
-            TABLE_COUNT=$(mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -N -s "${MYSQL_DATABASE}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${MYSQL_DATABASE}' AND table_name = 'guacamole_entity';")
+            TABLE_COUNT=$(mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" -N -s "${MYSQL_DATABASE}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '${MYSQL_DATABASE}' AND table_name = 'guacamole_entity';")
             if [ "${TABLE_COUNT}" -eq 0 ]; then
               echo "Applying Guacamole 1.6.0 MySQL schema from container..."
-              mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /schema/001-create-schema.sql
+              mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /schema/001-create-schema.sql
             else
               echo "Guacamole schema already initialized (guacamole_entity exists)."
             fi
             echo "Ensuring Guacamole admin user permissions are configured..."
-            mysql -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /secrets/insert-admin-user.sql
+            mysql --get-server-public-key -h "${MYSQL_HOSTNAME}" -P "${MYSQL_PORT}" -u "${MYSQL_USERNAME}" "${MYSQL_DATABASE}" < /secrets/insert-admin-user.sql
             echo "Database initialization complete."
         envFrom:
           - configMapRef:
